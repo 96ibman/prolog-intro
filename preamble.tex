@@ -1,0 +1,788 @@
+% ===================================================================
+% 1. CORE DOCUMENT UTILITIES & PAGE LAYOUT
+% ===================================================================
+\usepackage[margin=0.5in]{geometry}   
+\usepackage{graphicx}                 
+\usepackage{float}                   
+\usepackage{subcaption}
+\usepackage{booktabs}                 
+\usepackage{array}                    
+\usepackage{multicol}                 
+\usepackage{parskip}                  
+\usepackage{titling}                  
+%\setlength{\droptitle}{-1cm}          
+\usepackage{titlesec}
+
+% --- Blank Page Command ---
+\newcommand*{\blankpage}{
+  \begingroup
+    \setlength{\topskip}{0pt}
+    \setlength{\parskip}{0pt}
+    \vspace*{\fill}
+    \centering
+    \nointerlineskip 
+    This page was intentionally left blank. \par
+    \vspace{\fill}
+  \endgroup
+}
+
+% --- TODO ---
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+
+
+% ===================================================================
+% 2. TYPOGRAPHY, ENCODING, TEXT & LISTS
+% ===================================================================
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp}
+\usepackage{lipsum,lmodern}
+\usepackage[svgnames]{xcolor}
+\usepackage{soul}             
+\usepackage[inline]{enumitem}         
+\usepackage{gensymb}                  
+\usepackage{xspace}                  
+
+% --- Highlighted inline text ---
+\newcommand{\hltext}[1]{\sethlcolor{gray!10}\hl{#1}}
+
+
+% ===================================================================
+% 3. MATHEMATICS, LOGIC, AND SYMBOLS
+% ===================================================================
+\usepackage{proof}             
+\usepackage{amsmath, amssymb, mathtools} 
+\usepackage{empheq}      
+\usepackage{cancel}
+\usepackage{mathrsfs}                   
+\usepackage{stmaryrd}                    
+\usepackage{mathpartir}                  
+\usepackage{semantic}                    
+\usepackage{proofpack}             
+
+% --- Paired delimiters ---
+\newcommand{\set}[1]{\left\{#1\right\}}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\paren}[1]{\left( #1 \right)}
+\newcommand{\brak}[1]{[#1]}
+\newcommand{\floor}[1]{\left\lfloor#1\right\rfloor}
+\newcommand{\ceil}[1]{\left\lceil#1\right\rceil}
+
+% --- Logic and Semantics ---
+\newcommand{\Iof}[1]{\mathcal{I}(#1)}
+\newcommand{\Ivof}[1]{\mathcal{I}_{\varphi}(#1)}
+\newcommand{\sat}{\vDash}
+\newcommand{\unsat}{\nvDash}
+\newcommand{\satphi}{\vDash^{\varphi}}
+\newcommand{\unsatphi}{\nvDash^{\varphi}}
+\newcommand{\der}{\vdash}
+\newcommand{\derC}{\vdash_{\mathcal{C}}}
+\newcommand{\notder}{\nvdash}
+
+% --- Math operators ---
+\newcommand{\argmax}[1]{\mathop{\mathrm{arg\,max}}_{#1}\,}
+\newcommand{\argmin}[1]{\mathop{\mathrm{arg\,min}}_{#1}\,}
+\newcommand{\probd}[1]{\textbf{P}(#1)}
+
+% --- Set and tuple utilities ---
+\newcommand{\tuple}[1]{\left\langle #1 \right\rangle}
+\newcommand{\restr}[2]{#1\!\upharpoonright_{#2}} 
+\newcommand{\sint}[1]{\llbracket #1 \rrbracket}  
+\newcommand{\inverse}[1]{\ensuremath{{#1}^{-1}}} 
+\newcommand{\powerset}[1]{\ensuremath{\mathcal{P}(#1)}} 
+\newcommand{\setbuilder}[2]{\ensuremath{\{\,#1 \mid #2\,\}}}
+
+% --- LaTeX3 function syntax macros ---
+\ExplSyntaxOn
+\NewDocumentCommand{\union}{m}{\ensuremath{\clist_use:nn {#1} { \mathbin{\cup} }}}
+\NewDocumentCommand{\intersection}{m}{\ensuremath{\clist_use:nn {#1} { \mathbin{\cap} }}}
+\NewDocumentCommand{\compose}{m}{\ensuremath{\clist_use:nn {#1} { \mathbin{\circ} }}}
+\NewDocumentCommand{\cartprod}{m}{\ensuremath{\clist_use:nn {#1} { \mathbin{\times} }}}
+\ExplSyntaxOff
+
+% --- Total and Partial Functions ---
+\newcommand{\func}[3]{\ensuremath{#1 : #2 \to #3}}
+\newcommand{\pfunc}[3]{\ensuremath{#1 : #2 \rightharpoonup #3}}
+
+% --- Indexed set operations ---
+\newcommand{\bigunion}[1]{\ensuremath{\bigcup_{i \in I} {#1}_{i}}}
+\newcommand{\bigintersection}[1]{\ensuremath{\bigcap_{i \in I} {#1}_{i}}}
+
+% --- Common math helpers ---
+\newcommand{\identity}[1]{\ensuremath{\operatorname{Id}_{#1}}}
+\newcommand{\bigo}[1]{\mathcal{O}(#1)}
+\newcommand{\diff}{\mathop{}\!\mathrm{d}}
+
+
+% ===================================================================
+% 4. TIKZ AND DIAGRAMS
+% ===================================================================
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, trees, shapes, matrix, calc, decorations.pathreplacing}
+\tikzset{
+  vertex/.style={circle, draw, minimum size=18pt, inner sep=0pt},
+  edge/.style={-},
+  arc/.style={->, >=Stealth}
+}
+
+
+% ===================================================================
+% 5. CODE, LISTINGS, AND ALGORITHMS
+% ===================================================================
+\usepackage{algorithm, algorithmicx, algpseudocode} % Algorithm support
+\usepackage{tcolorbox}
+\tcbuselibrary{listingsutf8, skins, fitting, theorems, raster, magazine, breakable, xparse}
+
+% --- Code block environment ---
+\newtcblisting{codeblock}{
+  colback=gray!10,
+  colframe=black!40,
+  listing only,
+  boxrule=0.1pt,
+  arc=2pt,
+  left=0pt, right=0pt, top=0pt, bottom=0pt,
+  listing options={
+    breaklines=true,
+    basicstyle=\ttfamily,
+    literate={\$}{{\textdollar}}1
+  }
+}
+
+% --- Code block with title ---
+\newtcblisting{codeblocktitle}[1][]{
+  colback=gray!10,
+  colframe=black!40,
+  colbacktitle=gray!30,
+  coltitle=black,
+  listing only,
+  boxrule=0.1pt,
+  arc=2pt,
+  left=0pt, right=0pt, top=0pt, bottom=0pt,
+  #1,
+  listing options={
+    breaklines=true,
+    basicstyle=\ttfamily,
+    literate={\$}{{\textdollar}}1
+  }
+}
+
+% --- Captioned code block environment ---
+\lstnewenvironment{codeblocklst}[1][]
+{
+  \lstset{
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    rulecolor=\color{black!10},
+    framerule=0.1pt,
+    breaklines=true,
+    basicstyle=\ttfamily,
+    literate={\$}{{\textdollar}}1,
+    captionpos=b,
+    #1
+  }
+}{}
+
+% --- Inline code snippet ---
+\newcommand{\inlinecode}[1]{%
+  \tcbox[on line, fontupper=\ttfamily, size=small, boxrule=0.1pt, colframe=gray!50!black, colback=gray!10!white]{\detokenize{#1}}%
+}
+
+
+% ===================================================================
+% 6. BIBLIOGRAPHY, HYPERLINKS & CLEVEREF SETUP
+% ===================================================================
+\usepackage[
+backend=biber,
+style=alphabetic,
+sorting=ynt
+]{biblatex}
+\addbibresource{refs.bib}
+
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks,
+  citecolor=teal,
+  linkcolor=blue,
+  urlcolor=magenta
+}
+\usepackage[nameinlink,capitalize]{cleveref}
+
+
+% ===================================================================
+% 7. CUSTOM STRUCTURES AND ANCHORS
+% ===================================================================
+% --- Section titles ---
+\newcommand{\labeledsection}[2]{\section{#1}\label{#2}}
+\newcommand{\minititle}[1]{\subsubsection*{#1}}
+
+% --- Anchors and references ---
+\newcommand{\refterm}[2]{\phantomsection \label{#2}{\textbf{#1}}}
+\newcommand{\linkterm}[2]{\hyperref[#2]{#1}}
+
+% --- Definition emphasizer ---
+\newcommand{\defemph}[1]{\textbf{#1}}
+
+
+% ===================================================================
+% 8. DEFINITIONS, THEOREMS, AND MATHEMATICAL ENVIRONMENTS
+% ===================================================================
+
+% --- Section-scoped definitions ---
+\newcounter{definition}[section]
+\renewcommand{\thedefinition}{\thesection.\arabic{definition}}
+
+\NewDocumentCommand{\definition}{o +m m}{%
+  \refstepcounter{definition}%
+  \phantomsection
+  \par\noindent\textbf{Def~\thedefinition.} \IfValueT{#1}{\textbf{#1: }}#2%
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+  \par
+}
+\NewDocumentCommand{\Definition}{o +m m}{\definition[#1]{#2}{#3}}
+
+% --- Subsection-scoped definitions ---
+\newcounter{subdefinition}[subsection]
+\renewcommand{\thesubdefinition}{\thesubsection.\arabic{subdefinition}}
+
+\NewDocumentCommand{\subdefinition}{o +m m}{%
+  \refstepcounter{subdefinition}%
+  \phantomsection
+  \par\noindent\textbf{Def~\thesubdefinition.} \IfValueT{#1}{\textbf{#1: }}#2%
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+  \par
+}
+\NewDocumentCommand{\Subdefinition}{o +m m}{\subdefinition[#1]{#2}{#3}}
+
+% --- Shared theorem counter per section ---
+\newcounter{statement}[section]
+\renewcommand{\thestatement}{\thesection.\arabic{statement}}
+
+% --- Linked theorem-type counters ---
+\newcounter{theorem}
+\renewcommand{\thetheorem}{\thestatement}
+\newcounter{lemma}
+\renewcommand{\thelemma}{\thestatement}
+\newcounter{proposition}
+\renewcommand{\theproposition}{\thestatement}
+\newcounter{corollary}
+\renewcommand{\thecorollary}{\thestatement}
+\newcounter{axiom}
+\renewcommand{\theaxiom}{\thestatement}
+\newcounter{conjecture}
+\renewcommand{\theconjecture}{\thestatement}
+
+% --- Base style for theorem-like boxes ---
+% --- Unified Formal Statement Style ---
+% Consistent border and fill; the bold title conveys the semantic status.
+\tcbset{
+  statementbox/.style={
+    enhanced,
+    boxrule=0.7pt,
+    arc=2mm,
+    titlerule=0pt,
+    fonttitle=\bfseries,
+    coltitle=black,
+    colframe=black!45!white,
+    colbacktitle=black!12!white,
+    colback=black!2.5!white,
+    left=8pt,
+    right=8pt,
+    top=6pt,
+    bottom=6pt,
+    toptitle=4pt,
+    bottomtitle=4pt,
+    before skip=8pt,
+    after skip=8pt,
+    breakable
+  }
+}
+
+\NewDocumentCommand{\Theorem}{o +m m}{%
+  \stepcounter{statement}\refstepcounter{theorem}%
+  \phantomsection
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+  \begin{tcolorbox}[
+    statementbox,
+    title={Theorem~\thetheorem\IfValueT{#1}{: #1}}
+  ]
+  #2
+  \end{tcolorbox}%
+}
+
+\NewDocumentCommand{\Proposition}{o +m m}{%
+  \stepcounter{statement}\refstepcounter{proposition}%
+  \phantomsection
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+  \begin{tcolorbox}[
+    statementbox,
+    title={Proposition~\theproposition\IfValueT{#1}{: #1}}
+  ]
+  #2
+  \end{tcolorbox}%
+}
+
+\NewDocumentCommand{\Lemma}{o +m m}{%
+  \stepcounter{statement}\refstepcounter{lemma}%
+  \phantomsection
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+  \begin{tcolorbox}[
+    statementbox,
+    title={Lemma~\thelemma\IfValueT{#1}{: #1}}
+  ]
+  #2
+  \end{tcolorbox}%
+}
+
+\NewDocumentCommand{\Corollary}{o +m m}{%
+  \stepcounter{statement}\refstepcounter{corollary}%
+  \phantomsection
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+  \begin{tcolorbox}[
+    statementbox,
+    title={Corollary~\thecorollary\IfValueT{#1}{: #1}}
+  ]
+  #2
+  \end{tcolorbox}%
+}
+
+\NewDocumentCommand{\Axiom}{o +m m}{%
+  \stepcounter{statement}\refstepcounter{axiom}%
+  \phantomsection
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+  \begin{tcolorbox}[
+    statementbox,
+    title={Axiom~\theaxiom\IfValueT{#1}{: #1}}
+  ]
+  #2
+  \end{tcolorbox}%
+}
+
+\NewDocumentCommand{\Conjecture}{o +m m}{%
+  \stepcounter{statement}\refstepcounter{conjecture}%
+  \phantomsection
+  \if\relax\detokenize{#3}\relax\else\label{#3}\fi
+  \begin{tcolorbox}[
+    statementbox,
+    title={Conjecture~\theconjecture\IfValueT{#1}{: #1}}
+  ]
+  #2
+  \end{tcolorbox}%
+}
+
+% --- Solution environment ---
+\NewDocumentEnvironment{solution}{}{%
+  \par\noindent\textit{Solution: }\par
+}{%
+  \par
+}
+
+% --- Exercise Macro ---
+\definecolor{exercisecolor}{HTML}{2563EB}
+
+\newcounter{exercise}[section]
+\renewcommand{\theexercise}{\thesection.\arabic{exercise}}
+
+\tcbset{
+  exercisebox/.style={
+    enhanced,
+    breakable,
+    frame hidden,
+    boxrule=0pt,
+    colback=white,
+    borderline west={3pt}{0pt}{exercisecolor},
+    left=12pt,
+    right=0pt,
+    top=0pt,
+    bottom=0pt,
+    before skip=12pt,
+    after skip=12pt,
+    coltitle=exercisecolor,
+    fonttitle=\bfseries
+  }
+}
+
+\NewDocumentEnvironment{exercise}{o m}{%
+  \refstepcounter{exercise}%
+  \phantomsection
+  \if\relax\detokenize{#2}\relax\else\label{#2}\fi
+  \begin{tcolorbox}[
+    exercisebox,
+    title={Exercise~\theexercise\IfValueT{#1}{: #1}}
+  ]
+}{%
+  \end{tcolorbox}%
+}
+
+% --- Example Macro ---
+\definecolor{examplecolor}{HTML}{EA580C}
+
+\newcounter{example}[section]
+\renewcommand{\theexample}{\thesection.\arabic{example}}
+
+\tcbset{
+  examplebox/.style={
+    enhanced,
+    breakable,
+    frame hidden,
+    boxrule=0pt,
+    colback=white,
+    borderline west={3pt}{0pt}{examplecolor},
+    left=12pt,
+    right=0pt,
+    top=0pt,
+    bottom=0pt,
+    before skip=12pt,
+    after skip=12pt,
+    coltitle=examplecolor,
+    fonttitle=\bfseries
+  }
+}
+
+\NewDocumentEnvironment{example}{o m}{%
+  \refstepcounter{example}%
+  \phantomsection
+  \if\relax\detokenize{#2}\relax\else\label{#2}\fi
+  \begin{tcolorbox}[
+    examplebox,
+    title={Example~\theexample\IfValueT{#1}{: #1}}
+  ]
+}{%
+  \end{tcolorbox}%
+}
+
+% --- Excursion Macro ---
+\definecolor{excursioncolor}{HTML}{7C3AED}
+
+\tcbset{
+  excursionbox/.style={
+    enhanced,
+    breakable,
+    frame hidden,
+    boxrule=0pt,
+    colback=white,
+    borderline west={4pt}{0pt}{excursioncolor},
+    left=13pt,
+    right=0pt,
+    top=0pt,
+    bottom=0pt,
+    before skip=16pt,
+    after skip=16pt,
+    coltitle=excursioncolor,
+    fonttitle=\large\bfseries
+  }
+}
+
+\NewDocumentEnvironment{excursion}{o m}{%
+  \phantomsection
+  \if\relax\detokenize{#2}\relax\else\label{#2}\fi
+  \begin{tcolorbox}[
+    excursionbox,
+    title={Excursion\IfValueT{#1}{: #1}}
+  ]
+}{%
+  \end{tcolorbox}%
+}
+
+% --- Proof Environment ---
+\definecolor{proofcolor}{HTML}{475569}
+
+\newtcolorbox{proofbox}{
+    enhanced,
+    frame hidden,
+    boxrule=0pt,
+    colback=white,
+    borderline west={3pt}{0pt}{proofcolor},
+    left=12pt,
+    right=0pt,
+    top=0pt,
+    bottom=0pt,
+    before skip=8pt,
+    after skip=12pt,
+    title=Proof,
+    coltitle=proofcolor,
+    fonttitle=\itshape
+}
+
+\newenvironment{Proof}[1][Proof]
+{%
+    \begin{proofbox}
+}
+{%
+    \unskip\nobreak\hfill\penalty50\quad\ensuremath{\square}%
+    \end{proofbox}%
+}
+
+
+% ===================================================================
+% 9. CUSTOM BOXES
+% ===================================================================
+
+% --- Note boxes ---
+\newcommand{\commandnote}[1]{%
+\begin{tcolorbox}[
+    standard jigsaw,
+    breakable,
+    colframe=gray!50!black,
+    title=Note,
+    fonttitle=\bfseries
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Question ---
+\newcommand{\questionbox}[1]{%
+\begin{tcolorbox}[
+    enhanced,
+    attach boxed title to top left={xshift=5mm, yshift=-3mm, yshifttext=-1mm},
+    colback=blue!4!white,
+    colframe=blue!65!black,
+    colbacktitle=blue!75!black,
+    coltitle=white,
+    title=Question,
+    fonttitle=\bfseries,
+    boxed title style={size=small, colframe=blue!85!black, arc=1.5mm},
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Answer ---
+\newcommand{\answerbox}[1]{%
+\begin{tcolorbox}[
+    enhanced,
+    breakable,
+    attach boxed title to top left={xshift=5mm, yshift=-3mm, yshifttext=-1mm},
+    colback=cyan!5!white,
+    colframe=cyan!55!black,
+    colbacktitle=cyan!70!black,
+    coltitle=white,
+    title=Answer,
+    fonttitle=\bfseries,
+    boxed title style={size=small, colframe=cyan!85!black, arc=1.5mm},
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Titled Box ---
+\newcommand{\titledbox}[2]{%
+\begin{tcolorbox}[
+    colback=blue!3!white,
+    colframe=blue!70!white,
+    title=#1,
+    fonttitle=\bfseries,
+    arc=2mm
+]
+#2
+\end{tcolorbox}%
+}
+
+% --- Red Box ---
+\newcommand{\redbox}[1]{%
+\begin{tcolorbox}[
+    colback=red!5!white,
+    colframe=red!75!black,
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Centered Titled Box ---
+\newcommand{\centeredtitledbox}[2]{%
+\begin{tcolorbox}[
+    enhanced,
+    attach boxed title to top center={yshift=-3mm, yshifttext=-1mm},
+    colback=blue!3!white,
+    colframe=blue!75!black,
+    colbacktitle=white,
+    coltitle=blue!80!black,
+    title=#1,
+    fonttitle=\bfseries,
+    boxed title style={size=small, colframe=blue!75!black, boxrule=1pt, arc=1.5mm},
+    arc=2mm,
+    boxrule=0.8pt
+]
+#2
+\end{tcolorbox}%
+}
+
+% --- Attention ---
+\newcommand{\attentionbox}[1]{%
+\begin{tcolorbox}[
+    colback=red!5!white,
+    colframe=red!75!black,
+    coltitle=white,
+    title=\textbf{Attention},
+    fonttitle=\bfseries,
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Observation ---
+\newcommand{\observationbox}[1]{%
+\begin{tcolorbox}[
+    enhanced,
+    attach boxed title to top left={xshift=5mm, yshift=-3mm, yshifttext=-1mm},
+    colback=violet!4!white,
+    colframe=violet!60!black,
+    colbacktitle=violet!75!black,
+    coltitle=white,
+    title=Observation,
+    fonttitle=\bfseries,
+    boxed title style={size=small, colframe=violet!85!black, arc=1.5mm},
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Idea ---
+\newcommand{\ideabox}[1]{%
+\begin{tcolorbox}[
+    enhanced,
+    attach boxed title to top left={xshift=5mm, yshift=-3mm, yshifttext=-1mm},
+    colback=orange!6!white,
+    colframe=orange!70!black,
+    colbacktitle=orange!85!black,
+    coltitle=white,
+    title=Idea,
+    fonttitle=\bfseries,
+    boxed title style={size=small, colframe=orange!95!black, arc=1.5mm},
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Notation ---
+\newcommand{\notationbox}[1]{%
+\begin{tcolorbox}[
+    enhanced,
+    attach boxed title to top left={xshift=5mm, yshift=-3mm, yshifttext=-1mm},
+    colback=gray!6!white,
+    colframe=gray!60!black,
+    colbacktitle=gray!75!black,
+    coltitle=white,
+    title=Notation,
+    fonttitle=\bfseries,
+    boxed title style={size=small, colframe=gray!85!black, arc=1.5mm},
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Problem ---
+\newcommand{\problembox}[1]{%
+\begin{tcolorbox}[
+    enhanced,
+    breakable,
+    attach boxed title to top left={xshift=5mm, yshift=-3mm, yshifttext=-1mm},
+    colback=red!35!black!4!white,
+    colframe=red!45!black,
+    colbacktitle=red!45!black,
+    coltitle=white,
+    title=Problem,
+    fonttitle=\bfseries,
+    boxed title style={size=small, colframe=red!60!black, arc=1.5mm},
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+% --- Solution ---
+\newcommand{\solutionbox}[1]{%
+\begin{tcolorbox}[
+    enhanced,
+    breakable,
+    attach boxed title to top left={xshift=5mm, yshift=-3mm, yshifttext=-1mm},
+    colback=green!5!white,
+    colframe=green!45!black,
+    colbacktitle=green!60!black,
+    coltitle=white,
+    title=Solution,
+    fonttitle=\bfseries,
+    boxed title style={size=small, colframe=green!80!black, arc=1.5mm},
+    arc=2mm,
+    boxrule=0.8pt
+]
+#1
+\end{tcolorbox}%
+}
+
+
+% ===================================================================
+% 10. CLEVEREF CONFIGURATION
+% ===================================================================
+
+% --- Cleveref names ---
+\crefname{section}{section}{sections}
+\Crefname{section}{Section}{Sections}
+\crefname{subsection}{section}{sections}
+\Crefname{subsection}{Section}{Sections}
+\crefname{figure}{figure}{figures}
+\Crefname{figure}{Figure}{Figures}
+\crefname{table}{table}{tables}
+\Crefname{table}{Table}{Tables}
+\crefname{equation}{equation}{equations}
+\Crefname{equation}{Equation}{Equations}
+\crefname{algorithm}{algorithm}{algorithms}
+\Crefname{algorithm}{Algorithm}{Algorithms}
+\crefname{theorem}{theorem}{theorems}
+\Crefname{theorem}{Theorem}{Theorems}
+\crefname{lemma}{lemma}{lemmas}
+\Crefname{lemma}{Lemma}{Lemmas}
+\crefname{corollary}{corollary}{corollaries}
+\Crefname{corollary}{Corollary}{Corollaries}
+\crefname{proposition}{proposition}{propositions}
+\Crefname{proposition}{Proposition}{Propositions}
+\crefname{codeblock}{listing}{listings}
+\Crefname{codeblock}{Listing}{Listings}
+\crefname{appendix}{appendix}{appendices}
+\Crefname{appendix}{Appendix}{Appendices}
+\crefname{definition}{Def}{Defs}
+\Crefname{definition}{Def}{Defs}
+\crefname{subdefinition}{Def}{Defs}
+\Crefname{subdefinition}{Def}{Defs}
+\crefname{exercise}{exercise}{exercises}
+\Crefname{exercise}{Exercise}{Exercises}
+\crefname{example}{example}{examples}
+\Crefname{example}{Example}{Examples}
+\crefname{axiom}{axiom}{axioms}
+\Crefname{axiom}{Axiom}{Axioms}
+\crefname{conjecture}{conjecture}{conjectures}
+\Crefname{conjecture}{Conjecture}{Conjectures}
+
+% --- Reference shorthands ---
+\newcommand{\secref}[1]{\cref{#1}}   \newcommand{\Secref}[1]{\Cref{#1}}
+\newcommand{\figref}[1]{\cref{#1}}   \newcommand{\Figref}[1]{\Cref{#1}}
+\newcommand{\tabref}[1]{\cref{#1}}   \newcommand{\Tabref}[1]{\Cref{#1}}
+\newcommand{\eqrefc}[1]{\cref{#1}}   \newcommand{\Eqref}[1]{\Cref{#1}}
+\newcommand{\defref}[1]{\cref{#1}}  \newcommand{\Defref}[1]{\Cref{#1}} 
+\newcommand{\subdefref}[1]{\cref{#1}} \newcommand{\Subdefref}[1]{\Cref{#1}}
+\newcommand{\thmref}[1]{\cref{#1}}   \newcommand{\Thmref}[1]{\Cref{#1}}
+\newcommand{\lemref}[1]{\cref{#1}}   \newcommand{\Lemref}[1]{\Cref{#1}}
+\newcommand{\corref}[1]{\cref{#1}}   \newcommand{\Corref}[1]{\Cref{#1}}
+\newcommand{\propref}[1]{\cref{#1}}   \newcommand{\Propref}[1]{\Cref{#1}}
+\newcommand{\axref}[1]{\cref{#1}}   \newcommand{\Axref}[1]{\Cref{#1}}
+\newcommand{\conjref}[1]{\cref{#1}}  \newcommand{\Conjref}[1]{\Cref{#1}}
+\newcommand{\exampleref}[1]{\cref{#1}} \newcommand{\Exampleref}[1]{\Cref{#1}}
+\newcommand{\exerciseref}[1]{\cref{#1}} \newcommand{\Exerciseref}[1]{\Cref{#1}}
+\newcommand{\lstref}[1]{\cref{#1}}   \newcommand{\Lstref}[1]{\Cref{#1}}  
+\newcommand{\appref}[1]{\cref{#1}}   \newcommand{\Appref}[1]{\Cref{#1}}
+\newcommand{\Algref}[1]{\Cref{#1}}

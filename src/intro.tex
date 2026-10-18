@@ -1,0 +1,125 @@
+\section{Introduction}
+\subsection{Your First Program}
+
+In a Prolog program, we write \textbf{facts} and \textbf{rules} to construct our \textbf{knowledge base (KB)}. We can then \textbf{query} the KB, and the Prolog engine computes answers via \textbf{unification}, \textbf{substitution}, and \textbf{resolution} (a formal treatment is provided in \Secref{sec:theory}).
+
+\begin{example}[Facts]{}
+We want to add the facts that Socrates and Leibniz are humans and Socrates is also a Greek:
+\begin{codeblock}
+human(socrates).
+human(leibniz).
+greek(socrates).
+\end{codeblock}    
+\end{example}
+
+\observationbox{
+This is close to predicate logic syntax:
+\begin{itemize}
+    \item $\text{human}(\text{socrates})$
+    \item $\text{human}(\text{leibniz})$
+    \item $\text{greek}(\text{socrates})$
+\end{itemize}
+}
+
+\begin{example}[Rules]{}
+We want to add the following rule: 
+\[
+\forall X. \text{human}(X) \Rightarrow \text{fallible}(X)
+\]
+We do so in Prolog by writing:
+\begin{codeblock}
+fallible(X) :-
+    human(X).
+\end{codeblock}
+\end{example}
+
+\begin{example}[Query]{}
+Now we can ask: \textit{"Are there any fallible Greeks?"} by querying our knowledge base as follows:
+\begin{codeblock}
+?- fallible(X), greek(X).
+\end{codeblock}
+Prolog machinery runs under the hood to return an \textbf{answer substitution} $[\text{socrates}/X]$:
+\begin{codeblock}
+X = socrates
+\end{codeblock}
+\end{example}
+
+\begin{example}[Ground Query]{}
+Alternatively, we can ask a ground question with no variables (\textit{"Is Socrates fallible?"}):
+\begin{codeblock}
+?- fallible(socrates).
+\end{codeblock}
+Prolog will return \texttt{true}.
+\end{example}
+
+\textbf{Prolog} (short for \textit{PROgramming in LOGic}) is a \textbf{declarative logic programming language}. Unlike conventional \textbf{imperative} languages (such as C, Java, or Python), where a programmer specifies step-by-step instructions detailing \textit{how} the machine should alter state to compute a result, Prolog adopts a \textbf{declarative} philosophy: the programmer specifies \textit{what} relationships and truths hold within a problem domain.
+
+As famously formulated by Robert Kowalski (1979):
+\[
+\text{Algorithm} = \text{Logic} + \text{Control}
+\]
+
+In Prolog, the programmer is primarily responsible for formulating the \textbf{Logic} component, formalized as a subset of first-order predicate logic known as \textit{Horn clauses}. The runtime engine supplies the \textbf{Control} component through an automated deductive inference mechanism based on \textbf{resolution}, \textbf{unification}, and depth-first search with \textbf{backtracking}.
+
+\subsection{Prolog Syntax}
+
+\definition{
+Prolog expresses knowledge about the world via:
+\begin{itemize}
+    \item \defemph{Constants}: atoms (lowercase strings) or numbers (e.g., \texttt{0}, \texttt{42}).
+    \item \defemph{Variables}: denoted by strings starting with an uppercase letter (e.g., \texttt{X}) or an underscore (\texttt{\_}).
+    \item \defemph{Predicates}: relations applied to terms to form truth-valued statements.
+\end{itemize}
+}{}
+
+\begin{example}{}
+\begin{itemize}
+    \item \hltext{socrates}, \hltext{leibniz} are both constants.
+    \item \hltext{X} is a variable.
+    \item \hltext{human}, \hltext{greek}, and \hltext{fallible} are all predicates.
+\end{itemize}
+
+
+    
+\end{example}
+
+\definition{
+A \defemph{term} is the fundamental data object in Prolog. A term is either:
+\begin{itemize}
+    \item A \defemph{constant} (an atom or number),
+    \item A \defemph{variable}, or
+    \item A \defemph{compound term} (or structure), consisting of a \defemph{functor} (function symbol in logic) applied to argument terms, written as $f(t_1, \dots, t_n)$. Functors act purely as uninterpreted data constructors, not evaluable functions.
+\end{itemize}
+}{}
+
+\begin{example}{}
+\hltext{socrates} and \hltext{X} are both terms.
+\end{example}
+
+\notationbox{
+The number of arguments a predicate takes is called its \defemph{arity}. In Prolog literature, a predicate is uniquely identified by its name and arity, written as \texttt{functor/arity} (e.g., \texttt{human/1}, \texttt{parent/2}).
+}
+
+\definition{
+A Prolog \defemph{literal} is a predicate symbol applied to terms, $p(t_1, \dots, t_n)$, expressing an atomic proposition that can be proven true or false.
+}{}
+
+\begin{example}{}
+\hltext{human(socrates)} is a literal.
+\end{example}
+
+\definition{
+A Prolog program is a sequence of \defemph{clauses}. A clause is either:
+\begin{itemize}
+    \item A \defemph{fact} of the form $l.$ (a literal followed by a period).
+    \item A \defemph{rule} of the form $h\text{ :- }b_1, \dots, b_n.$ where $n > 0$. The literal $h$ is called the \defemph{head} (or \defemph{head literal}), and the literals $b_i$ constitute the \defemph{body} of the rule.
+\end{itemize}
+}{}
+
+\begin{example}{}
+\hltext{human(socrates).} is a fact and \hltext{fallible(X) :- human(X).} is a rule.    
+\end{example}
+
+\definition{
+A \defemph{query} is a list of Prolog literals called \defemph{goal literals} (also \defemph{subgoals} or simply \defemph{goals}). We write a query as $\texttt{?-} A_1, \dots, A_n\texttt{.}$, where $A_i$ are goals.
+}{}

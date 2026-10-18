@@ -1,0 +1,88 @@
+\documentclass[10pt]{article}
+\input{preamble}
+
+\title{
+    \textbf{\LARGE Prolog Introduction} \\[0.5em]
+    \large \textit{From Intuition to Formal Logic}
+    }
+\author{Ibrahim Nasser}
+
+\date{\small Last updated on \today}
+
+\begin{document}
+\pagenumbering{roman}
+\begin{titlepage}
+    \thispagestyle{empty}
+    \vspace*{4cm}
+    
+    % Left-aligned title block
+    \raggedright
+    {\fontsize{34}{40}\selectfont \textbf{Prolog Introduction}}\\[0.6em]
+    {\LARGE \textcolor{gray!70}{From Intuition to Formal Logic}}\\[2em]
+    
+    % Thick accent rule
+    {\color{teal!80!black}\rule{80pt}{3pt}}
+    
+    \vfill
+    
+    % Author and Metadata
+    {\large \textbf{Ibrahim Nasser}}\\[0.4em]
+    {\small Last updated on \today}\\[0.8em]
+    {\footnotesize\textcolor{gray!70}{Copyright \copyright\ 2026 Ibrahim Nasser}}
+    \vspace*{2cm}
+\end{titlepage}
+\clearpage
+\thispagestyle{empty}
+\vspace*{0.33\textheight}
+\begin{center}
+    {\color{black!75}\rule{100pt}{0.8pt}}\\[2.2em]
+    {\Large\itshape
+    Unification---\\[0.5em]
+    and backtracking predicates.\\[0.5em]
+    Throughout the seasons.}
+    \\[2.2em]
+    {\color{black!75}\rule{100pt}{0.8pt}}
+\end{center}
+\vfill
+\clearpage
+
+\section*{Preface}
+\addcontentsline{toc}{section}{Preface}
+
+This document is a hands-on, practical introduction to logic programming with Prolog.
+
+Learning Prolog is a fun and refreshing experience. Instead of telling the computer step-by-step \textit{how} to calculate a result using loops and mutable variables, Prolog encourages you to describe \textit{what} relationships hold true, letting the engine find the answers through unification and backtracking.
+
+The main purpose of this document is to help you build intuition through plenty of practice predicates and concrete examples. We will cover:
+\begin{itemize}
+    \item The core mechanics: understanding how the engine searches, matches, and backtracks.
+    \item Thinking recursively: working comfortably with numbers, lists, and trees.
+    \item Classic problems and algorithms: puzzles, search problems, and games.
+    \item A final chapter on theoretical foundations, included purely for completeness if you are curious about the formal First-Order Logic and resolution machinery under the hood.
+\end{itemize}
+
+I hope you enjoy exploring the declarative mindset. Have fun querying!
+\clearpage
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\include{src/intro}
+\include{src/engine}
+\include{src/recursion}
+\include{src/piano}
+\include{src/arith}
+\include{src/lists}
+\include{src/hanoi}
+\include{src/bt}
+\include{src/trees}
+\include{src/minimax}
+\include{src/pl0}
+\include{src/theory}
+
+\nocite{*}
+\printbibliography
+\end{document}

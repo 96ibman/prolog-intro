@@ -1,0 +1,715 @@
+\section{Tree Search Algorithms}
+
+To implement tree search algorithms we need to represent general trees in Prolog (not just binary trees).
+
+\minititle{General Tree}
+In binary trees, we always knew that there is a left and right subtrees. But here we do not know how many children a node has.
+
+\begin{example}[Tree Example]{ex:tree1}
+\begin{center}
+\begin{tikzpicture}[
+    level distance=1.2cm,
+    level 1/.style={sibling distance=2.4cm},
+    level 2/.style={sibling distance=1.6cm},
+    level 3/.style={sibling distance=1.6cm},
+    every node/.style={vertex}
+]
+\node {A}
+    child { node {B}
+        child { node {D}
+            child { node {E} }
+            child { node {F} }
+        }
+    }
+    child { node {C} };
+\end{tikzpicture}
+\end{center} 
+\end{example}
+
+
+\begin{example}[Tree Example]{ex:tree2}
+\begin{center}
+\begin{tikzpicture}[
+    level distance=1.3cm,
+    level 1/.style={sibling distance=3.4cm},
+    level 2/.style={sibling distance=1.1cm},
+    every node/.style={vertex}
+]
+\node {A}
+    child { node {B}
+        child { node {E} }
+        child { node {F} }
+        child { node {G} }
+    }
+    child { node {C} }
+    child { node {D}
+        child { node {H} }
+        child { node {I} }
+    };
+\end{tikzpicture}
+\end{center}
+\end{example}
+
+\ideabox{
+A tree is a labelled node with a \textbf{list} of children, where each child can itself be a tree (with its own list of children) and leaves are just trees with no children (an empty list of children)
+}
+
+We create predicate  \texttt{istree/1} to validate if something is a tree:
+
+\begin{codeblock}
+istree(tree(N, Children)):-
+    string(N),
+    istreelist(Children).
+
+istreelist([]).
+istreelist([H|T]):-
+    istree(H),
+    istreelist(T).
+\end{codeblock}
+
+Let's represent the tree in \Exampleref{ex:tree1}
+
+\begin{codeblock}
+?- istree(
+    tree("A",
+         [ tree("B",
+                [ tree("D",
+                       [ tree("E", []),
+                         tree("F", [])
+                       ])
+                ]),
+           tree("C", [])
+         ])
+  ).
+true
+\end{codeblock}
+
+And the tree in \Exampleref{ex:tree2}
+\begin{codeblock}
+?- istree(
+    tree("A",
+         [ tree("B",
+                [ tree("E", []),
+                  tree("F", []),
+                  tree("G", [])
+                ]),
+           tree("C", []),
+           tree("D",
+                [ tree("H", []),
+                  tree("I", [])
+                ])
+         ])
+  ).
+true
+\end{codeblock}
+
+\minititle{DFS}
+
+We want to create a DFS predicate \texttt{dfs/1} that traverses the given tree in a pre-order DFS and prints out the traversed node label along with its depth (level). For example, if we give the tree in \Exampleref{ex:tree2}, we want to get:
+\begin{codeblock}
+0:A
+1:B
+2:E
+2:F
+2:G
+1:C
+1:D
+2:H
+2:I
+true
+\end{codeblock}
+
+
+\problembox{
+\begin{enumerate}
+    \item How do we keep track of the current depth level $D$ as we go deeper into the tree?
+    \item A node's \texttt{Children} is a \textbf{list} of unknown size. How do we traverse an arbitrary list of trees while maintaining depth-first order?
+\end{enumerate}
+}
+
+\ideabox{
+We want our predicate to be a public wrapper where it initially calls a helper predicate with initial depth of zero.
+}
+
+\begin{codeblock}
+dfs(T) :- 
+    dfsD(T, 0).
+\end{codeblock}
+
+\questionbox{
+What should \texttt{dfsD/2} do?
+}
+
+At any node \texttt{tree(N, Children)} at depth \texttt{D}:
+\begin{enumerate}
+    \item We first print the current node's label with its depth: \texttt{write(D), write(":"), writeln(N)}.
+    \item Its children will live one level deeper: \texttt{Next is D + 1}.
+\end{enumerate}
+
+\problembox{
+How do we traverse the list of children?
+}
+
+\ideabox{
+\textbf{The Mutual Recursion Pattern (Trees $\longleftrightarrow$ Lists of Trees):}
+\begin{itemize}
+    \item A \textbf{tree} contains a list of children.
+    \item A \textbf{list of children} contains individual trees.
+\end{itemize}
+This natural duality calls for \textbf{mutual recursion}: \texttt{dfsD} processes a single tree and delegates the children list to another predicate which walks through the list and calls \texttt{dfsD} on each child tree!
+}
+
+Therefore, \texttt{dfsD/2} will look like:
+\begin{codeblock}
+dfsD(tree(N, Children), D) :-
+    write(D), write(":"), writeln(N),
+    Next is D + 1,
+    dfsAll(Children, Next).
+\end{codeblock}
+
+Now, \texttt{dfsAll} simply walks down the list of sibling trees at depth \texttt{D}:
+\begin{itemize}
+    \item \textbf{Base Case:} An empty list of children \texttt{[]} requires no action.
+    \item \textbf{Recursive Step:} Given \texttt{[H|T]}, we process the first child tree \texttt{H} using \texttt{dfsD(H, D)}, and then recursively process the remaining sibling trees \texttt{T} using \texttt{dfsAll(T, D)}.
+\end{itemize}
+
+\observationbox{
+Notice a subtle but beautiful detail:
+\begin{itemize}
+    \item When descending from parent to children in \texttt{dfsD}, depth increments: \texttt{Next is D + 1}.
+    \item When moving across sibling trees in \texttt{dfsAll}, depth \textbf{remains the same} (\texttt{D}) because all siblings share the exact same level!
+\end{itemize}
+}
+
+Putting things together:
+\begin{codeblock}
+% Public wrapper
+dfs(T) :- 
+    dfsD(T, 0).
+
+% Process a single node: print, increment depth, delegate children
+dfsD(tree(N, Children), D) :-
+    write(D), write(":"), writeln(N),
+    Next is D + 1,
+    dfsAll(Children, Next).
+
+% Process a list of sibling trees
+dfsAll([], _).
+dfsAll([H|T], D) :-
+    dfsD(H, D),
+    dfsAll(T, D).
+\end{codeblock}
+
+Let's run \texttt{dfs/1} on the tree from \Exampleref{ex:tree2}:
+
+\begin{codeblock}
+?- dfs(tree("A", [
+           tree("B", [tree("E", []), tree("F", []), tree("G", [])]),
+           tree("C", []),
+           tree("D", [tree("H", []), tree("I", [])])
+       ])).
+0:A
+1:B
+2:E
+2:F
+2:G
+1:C
+1:D
+2:H
+2:I
+true.
+\end{codeblock}
+
+
+\minititle{BFS}
+Similarly, we want to have a predicate \texttt{bfs/1} that traverses the tree in BFS (level by level). We are hoping to get the following output if we call it on the tree in \Exampleref{ex:tree2}:
+
+\begin{codeblock}
+0:A
+1:B
+1:C
+1:D
+2:E
+2:F
+2:G
+2:H
+2:I
+true
+\end{codeblock}
+
+\newpage
+\problembox{
+In our depth-first traversal, Prolog did all the heavy lifting: its internal resolution engine naturally behaves like a LIFO stack. Descending into children was as simple as making a recursive call. 
+
+As we discussed earlier, BFS runs in direct opposition to Prolog's execution strategy! If we discover a node's children and immediately make recursive calls on them, Prolog will dive straight down the first child's subtree—collapsing back into DFS. 
+
+To explore nodes level by level, newly discovered children are not allowed to be visited right away. They must wait behind all previously discovered nodes. We need an explicit \textbf{FIFO (First-In, First-Out) queue}, traditionally called an \defemph{exploration fringe}.
+}
+
+\questionbox{
+If our queue simply holds a list of trees waiting to be explored, say $[T_1, T_2, \dots]$, how will we know the depth of a node when we eventually pop it from the queue?
+}
+
+\commandnote{
+Notice that at any intermediate stage, the queue might hold sibling nodes from depth $1$ alongside newly enqueued children from depth $2$. A single global counter or depth parameter passed to a recursive loop cannot work, because elements currently waiting in the queue belong to different depths!
+}
+
+\ideabox{
+We must \textbf{bundle each tree together with its own depth}! 
+
+Instead of storing bare tree terms in the queue, every element in our fringe will be an explicit pair:
+\[
+(D,\, T)
+\]
+where $D \in \mathbb{N}$ records the exact depth of subtree $T$. When search begins at the root, the queue starts with just a single pair:
+\[
+[(0,\, \text{Root})]
+\]
+}
+
+Let us examine what a single step of breadth-first exploration looks like. Suppose our fringe is non-empty, with the first pair waiting at the front:
+\[
+[(D,\, \text{tree}(N,\, \text{Children})) \mid \text{ToExplore}]
+\]
+What actions must take place?
+\begin{enumerate}
+    \item \textbf{Visit:} Dequeue the front pair and print its depth and label: $D:N$.
+    \item \textbf{Calculate Child Depth:} Since this node sits at depth $D$, all of its immediate children belong to depth $D + 1$.
+    \item \textbf{Tag Descendants:} Take the raw list of child trees and pair every single one of them with this new depth $D + 1$.
+    \item \textbf{Enqueue at the Back:} To preserve the FIFO discipline, add these newly tagged pairs to the \textbf{end} of the remaining queue ($\text{ToExplore}$).
+    \item \textbf{Recurse:} Continue exploring the updated queue.
+\end{enumerate}
+When the queue eventually becomes empty (\texttt{[]}), every reachable node across all levels has been visited, and the process cleanly terminates.
+
+\questionbox{
+Before we assemble the main loop, we need a small helper to handle step (3). 
+
+Given a depth $D$ and a list of child trees $[C_1, C_2, \dots, C_k]$, how do we construct a list of pairs $[(D, C_1), (D, C_2), \dots, (D, C_k)]$ in Prolog?
+}
+
+\solutionbox{
+We define a pairing relation by structural induction on the list of children:
+\begin{itemize}
+    \item \textbf{Base Case:} Pairing any depth with an empty list of children yields an empty list.
+    \item \textbf{Recursive Step:} Given a head child $H$ and tail $T$, we construct the pair $(D, H)$ at the front, and recursively pair $D$ with the remaining tail $T$.
+\end{itemize}
+}
+
+In Prolog, this translates directly to:
+
+\begin{codeblock}
+pair(_, [], []).
+pair(D, [H|T], [(D, H)|T2]) :-
+    pair(D, T, T2).
+\end{codeblock}
+
+With this helper ready, we can formulate our fringe exploration loop:
+\begin{itemize}
+    \item \textbf{Base Case:} An empty fringe requires no work:
+\begin{codeblock}
+bfsFringe([]).
+\end{codeblock}
+    \item \textbf{Recursive Step:} Pull the front pair, print it, compute \texttt{Next is D + 1}, tag the children with \texttt{pair/3}, append them to the end of the existing queue, and recurse:
+\begin{codeblock}
+bfsFringe([(D, tree(N, Children)) | ToExplore]) :-
+    write(D), write(":"), writeln(N),
+    Next is D + 1,
+    pair(Next, Children, NextToExplore),
+    append(ToExplore, NextToExplore, NewFringe),
+    bfsFringe(NewFringe).
+\end{codeblock}
+\end{itemize}
+
+Finally, our \texttt{bfs/1} is just a wrapper that starts the fringe with the root at depth $0$:
+
+\begin{codeblock}
+bfs(T) :-
+    bfsFringe([(0, T)]).
+\end{codeblock}
+
+Putting all the pieces together gives our complete breadth-first engine:
+
+\begin{codeblock}
+% wrapper
+bfs(T) :-
+    bfsFringe([(0, T)]).
+
+% loop
+% Base case: empty queue terminates
+bfsFringe([]).
+
+% Recursive step: pop front, print, tag children, append to back
+bfsFringe([(D, tree(N, Children)) | ToExplore]) :-
+    write(D), write(":"), writeln(N),
+    Next is D + 1,
+    pair(Next, Children, NextToExplore),
+    append(ToExplore, NextToExplore, NewFringe),
+    bfsFringe(NewFringe).
+
+% Helper: tag each child tree with depth D
+pair(_, [], []).
+pair(D, [H|T], [(D, H)|T2]) :-
+    pair(D, T, T2).
+\end{codeblock}
+
+\begin{example}[BFS Queue Evolution Trace]{ex:bfstrace}
+To see the FIFO queue in action, let us trace how the fringe evolves when calling \texttt{bfs/1} on the tree from \Exampleref{ex:tree2}:
+\begin{itemize}
+    \item \textbf{Step 0:} Fringe is $[(0, A)]$. Pop $A$, print \texttt{0:A}. Tag children $B, C, D$ with depth $1$ and enqueue them.
+    \item \textbf{Step 1:} Fringe is $[(1, B), (1, C), (1, D)]$. Pop $B$, print \texttt{1:B}. Tag children $E, F, G$ with depth $2$ and append them to the back:
+    \[
+    [(1, C),\, (1, D),\, (2, E),\, (2, F),\, (2, G)]
+    \]
+    Notice that $C$ and $D$ remain in front of $E, F, G$!
+    \item \textbf{Steps 2--3:} Pop and print \texttt{1:C} and \texttt{1:D}. Enqueue $D$'s children $H, I$ at depth $2$.
+    \item \textbf{Remaining Steps:} The queue now contains only depth $2$ nodes: $[(2, E), (2, F), (2, G), (2, H), (2, I)]$, which are dequeued and printed in strict order.
+\end{itemize}
+\end{example}
+
+Let's traverse the tree in \Exampleref{ex:tree1}:
+
+\begin{codeblock}
+?- bfs(tree("A",
+         [ tree("B",
+                [ tree("D",
+                       [ tree("E", []),
+                         tree("F", [])
+                       ])
+                ]),
+           tree("C", [])
+         ])).
+0:A
+1:B
+1:C
+2:D
+3:E
+3:F
+true
+\end{codeblock}
+
+\minititle{DLS}
+Depth-Limited Search is a DFS but with a cut-off depth limit. We want to write a predicate \texttt{dls(T,L)} that performs DLS traversal of the tree $T$ where $L$ is the cut-off depth limit.
+
+Example usage on the tree in \Exampleref{ex:tree1} with depth limit $=2$:
+\begin{codeblock}
+?- dls(tree("A",
+         [ tree("B",
+                [ tree("D",
+                       [ tree("E", []),
+                         tree("F", [])
+                       ])
+                ]),
+           tree("C", [])
+         ]),2).
+
+0:A
+1:B
+2:D
+1:C
+true
+\end{codeblock}
+
+
+
+\questionbox{
+Think back to our standard DFS implementation. We used mutual recursion between a single-node processor and a list-of-children processor, carrying an accumulator $D$ for the current depth:
+\begin{itemize}
+    \item How do we inform our search of the limit $L$?
+    \item When the search arrives at a node whose depth satisfies $D > L$, what should happen?
+\end{itemize}
+}
+
+\ideabox{
+We must enforce a \textbf{guard condition}:
+\begin{itemize}
+    \item If $D > L$, we have overstepped our allowed horizon. The search must immediately succeed vacuously without printing the node or expanding its children.
+    \item If $D \le L$, we proceed normally: print the node, increment the depth to $D + 1$, and explore its children under the same ceiling $L$.
+\end{itemize}
+}
+
+\questionbox{
+In Prolog, how do we express: "if $D > L$, stop and do nothing, and \textbf{never} attempt to fall through to the printing clause"?
+}
+
+We create a predicate \texttt{dfsUpTo}:
+
+\begin{codeblock}
+dfsUpTo(_, D, L) :- 
+    D > L, 
+    !.
+\end{codeblock}
+
+If $D > L$ succeeds, the cut \texttt{!} commits immediately to this clause and burns any choice point that would otherwise attempt the subsequent clauses. Because the body ends right there, it succeeds quietly without printing anything or touching the children.
+
+When $D \le L$, we want to print the current node, compute the children's depth, and pass the list of children together with the next depth and \texttt{L} to our list processor. For that, we create the following predicate:
+
+\begin{codeblock}
+dfsUpTo(tree(N, Children), D, L) :- 
+    write(D), write(":"), writeln(N), 
+    Next is D + 1, 
+    dfsUpToAll(Children, Next, L).
+\end{codeblock}
+
+The companion list processor simply distributes this logic across all siblings at depth $D$:
+\begin{itemize}
+    \item \textbf{Base Case:} An empty list of children requires no actions:
+\begin{codeblock}
+dfsUpToAll([], _, _).
+\end{codeblock}
+    \item \textbf{Recursive Step:} Explore the head child, then recursively process the remaining siblings:
+\begin{codeblock}
+dfsUpToAll([H|T], D, L) :- 
+    dfsUpTo(H, D, L),
+    dfsUpToAll(T, D, L).
+\end{codeblock}
+\end{itemize}
+
+Finally, our public predicate simply receives the tree $T$ and the cut-off limit $L$, initializing the search at the root level $D = 0$:
+
+\begin{codeblock}
+dls(T, L) :- 
+    dfsUpTo(T, 0, L).
+\end{codeblock}
+
+Putting all the pieces together gives our complete Depth-Limited Search engine:
+
+\begin{codeblock}
+% Wrapper: start DLS at depth 0 with limit L
+dls(T, L) :- 
+    dfsUpTo(T, 0, L).
+
+% Cutoff clause: if depth exceeds limit, prune branch
+dfsUpTo(_, D, L) :- 
+    D > L, 
+    !.
+
+% Expansion clause: visit node, increment depth, recurse into children
+dfsUpTo(tree(N, Children), D, L) :- 
+    write(D), write(":"), writeln(N), 
+    Next is D + 1, 
+    dfsUpToAll(Children, Next, L).
+
+% Process list of siblings: base case
+dfsUpToAll([], _, _).
+
+% Process list of siblings: recursive step
+dfsUpToAll([H|T], D, L) :- 
+    dfsUpTo(H, D, L),
+    dfsUpToAll(T, D, L).
+\end{codeblock}
+
+Let us test \texttt{dls/2} on the tree from \Exampleref{ex:tree2} with different depth limits $L$.
+
+Setting $L = 1$ cuts off all children at depth $2$ ($E, F, G, H, I$):
+
+\begin{codeblock}
+?- dls(tree("A", [
+           tree("B", [tree("E", []), tree("F", []), tree("G", [])]),
+           tree("C", []),
+           tree("D", [tree("H", []), tree("I", [])])
+       ]), 1).
+0:A
+1:B
+1:C
+1:D
+true.
+\end{codeblock}
+
+If we set $L = 0$, only the root is visited:
+
+\begin{codeblock}
+?- dls(tree("A", [
+           tree("B", [tree("E", []), tree("F", []), tree("G", [])]),
+           tree("C", []),
+           tree("D", [tree("H", []), tree("I", [])])
+       ]), 0).
+0:A
+true.
+\end{codeblock}
+
+\commandnote{
+Setting $L = 2$ allows the search to reach the full depth, reproducing the complete DFS traversal.
+}
+
+
+
+
+\minititle{IDS}
+Iterative Deepening Search is a DLS with an increasing depth limit. We want a predicate \texttt{ids/1} that traverses the tree starting with a depth limit $0$ and increasing until the maximum actual depth of the tree. For each depth limit, we want to print that depth limit and then traverse the nodes as usual.
+
+Here is what we hope for if we give the tree in \Exampleref{ex:tree1}
+\begin{codeblock}
+?- ids(tree("A",
+         [ tree("B",
+                [ tree("D",
+                       [ tree("E", []),
+                         tree("F", [])
+                       ])
+                ]),
+           tree("C", [])
+         ])).
+
+LIMIT = 0
+0:A
+LIMIT = 1
+0:A
+1:B
+1:C
+LIMIT = 2
+0:A
+1:B
+2:D
+1:C
+LIMIT = 3
+0:A
+1:B
+2:D
+3:E
+3:F
+1:C
+true
+\end{codeblock}
+
+\ideabox{
+Just call DLS with increasing depth limits starting from 0.
+}
+
+\problembox{
+We want to know when to stop. Because for a finite tree (such as \Exampleref{ex:tree1}, which has a maximum depth of $3$) once we run DLS with $L = 3$, the entire tree has already been completely explored. If we naively continue with $L = 4, 5, 6, \dots$, it would endlessly re-traverse the exact same tree! 
+}
+
+\ideabox{
+We want some way of reporting back to the outer lopp that the entire tree was explored
+}
+
+
+\ideabox{
+We can equip our depth-limited traversal with a \textbf{termination flag}:
+\[
+\text{Done} \in \{0,\, 1\}
+\]
+\begin{itemize}
+    \item If at \textbf{any} point during the traversal a node exceeds the depth limit ($D > L$), that branch was cut off. Thus, the tree was \textit{not} fully explored, so we report $\text{Done} = 0$.
+    \item If a node is a leaf (empty children list \texttt{[]}), it has no children to cut off, so that branch is fully explored: $\text{Done} = 1$.
+    \item For an internal node with multiple children, the entire subtree is fully explored if and only if \textbf{all} of its children are fully explored! In arithmetic, a logical $\text{AND}$ over binary flags is simply multiplication:
+    \[
+    \text{Done} = \text{Done}_H \times \text{Done}_T
+    \]
+    If even a single child was truncated (returning $0$), the product collapses to $0$!
+\end{itemize}
+}
+
+Let us refine our depth-limited traversal to carry this fourth argument, reflecting our three cases:
+
+\begin{enumerate}
+    \item \textbf{Cutoff Hit ($D > L$):} When the depth ceiling is breached, we prune the branch with a cut (\texttt{!}) and unify the status flag with $0$:
+\begin{codeblock}
+dfsUpTo(_, D, L, 0) :-
+    D > L,
+    !.
+\end{codeblock}
+
+    \item \textbf{Node Expansion ($D \le L$):} When within limits, we print the node, increment the depth, and let the list of children determine the overall \texttt{Done} status:
+\begin{codeblock}
+dfsUpTo(tree(N, Children), D, L, Done) :-
+    write(D), write(":"), writeln(N),
+    D1 is D + 1,
+    dfsUpToAll(Children, D1, L, Done).
+\end{codeblock}
+
+    \item \textbf{Children Exploration:} An empty list of children represents an exhausted branch ($\text{Done} = 1$). A non-empty list computes the conjunction of all child flags via multiplication:
+\begin{codeblock}
+dfsUpToAll([], _, _, 1).
+dfsUpToAll([H|T], D, L, Done) :-
+    dfsUpTo(H, D, L, DoneH),
+    dfsUpToAll(T, D, L, DoneT),
+    Done is DoneH * DoneT.
+\end{codeblock}
+\end{enumerate}
+
+\questionbox{
+Now that our traversal returns $\text{Done} \in \{0, 1\}$, how do we structure the outer deepening loop?
+}
+
+\solutionbox{
+At each stage with current limit $C$:
+\begin{enumerate}
+    \item Print \texttt{LIMIT = C}.
+    \item Launch the traversal: \texttt{dfsUpTo(T, 0, C, Done)}.
+    \item Inspect the result using a helper predicate:
+    \begin{itemize}
+        \item If $\text{Done} = 1$, the entire tree was explored without hitting any limit ceiling. Search is complete!
+        \item If $\text{Done} = 0$, at least one branch was truncated. Increment the limit to $C + 1$ and recurse!
+    \end{itemize}
+\end{enumerate}
+}
+
+In Prolog, this logic is expressed declaratively with two clauses:
+
+\begin{codeblock}
+% Base case: entire tree explored without cutoffs -> stop!
+handleDone(_, _, 1).
+
+% Recursive step: cutoff occurred -> increment limit and repeat
+handleDone(T, C, 0) :-
+    C1 is C + 1,
+    idsUntilDone(T, C1).
+\end{codeblock}
+
+Our looping predicate ties everything together:
+
+\begin{codeblock}
+idsUntilDone(T, C) :-
+    write('LIMIT = '), writeln(C),
+    dfsUpTo(T, 0, C, Done),
+    handleDone(T, C, Done).
+\end{codeblock}
+
+Finally, the public entry point starts the iterative deepening process with limit $0$:
+
+\begin{codeblock}
+ids(T) :- 
+    idsUntilDone(T, 0).
+\end{codeblock}
+
+Putting all the components together gives our complete Iterative Deepening Search engine:
+
+\begin{codeblock}
+% Wrapper: start IDS at limit 0
+ids(T) :- 
+    idsUntilDone(T, 0).
+
+% Outer loop
+idsUntilDone(T, C) :-
+    write('LIMIT = '), writeln(C),
+    dfsUpTo(T, 0, C, Done),
+    handleDone(T, C, Done).
+
+% Done = 1 -> fully explored, stop
+handleDone(_, _, 1).
+
+% Done = 0 -> branch cut off, deepen limit
+handleDone(T, C, 0) :-
+    C1 is C + 1,
+    idsUntilDone(T, C1).
+
+% depth exceeded -> branch truncated (Done = 0)
+dfsUpTo(_, D, L, 0) :-
+    D > L,
+    !.
+
+% visit node, delegate Done status to children
+dfsUpTo(tree(N, Children), D, L, Done) :-
+    write(D), write(":"), writeln(N),
+    D1 is D + 1,
+    dfsUpToAll(Children, D1, L, Done).
+
+% no children -> fully explored (Done = 1)
+dfsUpToAll([], _, _, 1).
+
+% Done is logical AND of all child statuses
+dfsUpToAll([H|T], D, L, Done) :-
+    dfsUpTo(H, D, L, DoneH),
+    dfsUpToAll(T, D, L, DoneT),
+    Done is DoneH * DoneT.
+\end{codeblock}

@@ -1,0 +1,347 @@
+\section{Numerical Arithmetic}
+To evaluate arithmetic expressions numerically rather than treating them as symbolic data structures, Prolog provides the built-in infix operator \inlinecode{is}.
+
+\begin{example}{}
+Notice the crucial difference between the standard unification operator \inlinecode{=} and the arithmetic evaluator \inlinecode{is}:
+
+\begin{codeblock}
+?- X = 2 + 3.
+X = 2 + 3.
+
+?- X is 2 + 3.
+X = 5.
+\end{codeblock}
+
+In the first query, \inlinecode{X = 2 + 3} performs purely structural unification; Prolog treats \inlinecode{2 + 3} as the symbolic compound term. 
+
+In the second query, \inlinecode{X is 2 + 3} instructs the engine to compute the numeric value of the right-hand side expression first, and then unify the result with \inlinecode{X}.
+\end{example}
+
+\commandnote{
+The right-hand side of \inlinecode{is} must be fully instantiated (e.g., X is Y + 1 throws an instantiation error if Y does not already hold a number).
+}
+
+Let's write a predicate \inlinecode{fact(X,Y)} that is true if $Y$ is the factorial of $X$. 
+
+For the base case, we know that $0! = 1$.
+
+\begin{codeblock}
+fact(0,1).
+\end{codeblock}
+
+For the recursive case, we know that $X! = X \cdot (X-1)!$. We write that as follows:
+
+\begin{codeblock}
+fact(X,Xfact) :-
+    X \= 0,               % \= means not equal
+    Y is X-1,
+    fact(Y, Yfact), 
+    Xfact is X * Yfact.
+\end{codeblock}
+
+Quick Test:
+
+\begin{codeblock}
+?- fact(0,X).
+X = 1
+;
+false
+\end{codeblock}
+
+\begin{codeblock}
+?- fact(4,X).
+X = 24
+;
+false
+\end{codeblock}
+
+\problembox{
+Look at what happens at the bottom of the recursion when Prolog evaluates our query:
+\begin{itemize}
+    \item Assume the query is just \texttt{?- fact(0,X).}
+    \item Prolog matches the first clause.
+    \item But the engine sees that there is a second clause in our KB that also matches the query.
+    \item Therefore, Prolog creates a Choice point on the stack pointing to clause 2, just in case clause 1 doesn't work out.
+    \item This is wasteful: factorial is a deterministic function (there is only one answer), yet Prolog leaves a useless choice point in memory.
+\end{itemize}
+}
+
+\solutionbox{
+The cut operator \inlinecode{!} to the rescue. To fix this, we tell Prolog: \textit{"Once you match the base case, commit to it! Do not leave a choice point, and do not try any other clauses"}
+}
+
+\begin{example}[Cut Operator]{}
+\begin{codeblock}
+fact(0, 1) :- !.
+fact(X, Xfact) :-
+    X > 0,
+    Y is X - 1,
+    fact(Y, Yfact),
+    Xfact is X * Yfact.
+\end{codeblock}
+
+Now if we query:
+
+\begin{codeblock}
+?- fact(3, X).
+X = 6
+\end{codeblock}
+\end{example}
+
+\redbox{
+Keeping the condition $X > 0$ is important
+}
+
+Assume we want to write a predicate \texttt{max(X,Y,Z)} where, given two numbers $X$ and $Y$, $Z$ is their maximum. We can do that as follows:
+
+\begin{codeblock}
+max(X, Y, X) :- X >= Y.
+max(X, Y, Y) :- X < Y.
+\end{codeblock}
+
+Testing.
+
+\begin{codeblock}
+?- max(1,2,X).
+X = 2
+
+?- max(2,1,X).
+X = 2;
+false 
+
+?- max(2,2,X).
+X = 2;
+false
+\end{codeblock}
+
+\commandnote{
+In the first query, clause 1 tests $1 \geq 2$ and fails immediately, Prolog moves to clause 2 (the last match) and outputs $X=2$ (no backtrack points registered).
+
+In the last two queries, clause 1 tests $2 \geq 1$ or $2 \geq 2$ and succeeds, but Prolog sees that clause 2 is still an untried candidate, so it records a choice point.
+}
+
+To solve this, a \textbf{cut} is used:
+
+\begin{codeblock}
+max(X, Y, X) :- X >= Y, !.
+max(X, Y, Y) :- X < Y.
+\end{codeblock}
+
+\begin{codeblock}
+?- max(1, 2, X).
+X = 2.
+
+?- max(2, 1, X).
+X = 2.             
+
+?- max(2, 2, X).
+X = 2.             
+\end{codeblock}
+
+A programmer might think: \textit{"If $X \geq Y$ was false, then $X < Y$ must be true! Why waste time checking $X < Y$ in clause 2? Let's just omit it!"}:
+
+\begin{codeblock}
+max(X, Y, X) :- X >= Y, !.
+max(_, Y, Y). 
+\end{codeblock}
+
+At first glance, everything seems to work just fine:
+
+\begin{codeblock}
+?- max(1, 2, X).
+X = 2.
+
+?- max(2, 1, X).
+X = 2.             
+
+?- max(2, 2, X).
+X = 2.             
+\end{codeblock}
+
+But let's try this query:
+
+\begin{codeblock}
+?- max(5, 2, 2).
+\end{codeblock}
+
+We should get \texttt{false} here but actually we get \texttt{true}!
+
+\begin{itemize}
+    \item Prolog tests clause 1 and because $2 \neq 5$ it does not unify, it fails before the cut is ever reached! 
+    \item Prolog falls through to clause 2 and it unifies perfectly with the query, that's why we get \texttt{true}.
+\end{itemize}
+
+\subsection{Green Cuts vs. Red Cuts}
+Cuts are generally classified into two categories based on whether they alter the declarative meaning of the program:
+\begin{itemize}
+    \item \defemph{Green Cut:} A cut that only improves efficiency. Removing it does not change the set of answers the program produces.
+    \item \defemph{Red Cut:} A cut that alters the declarative semantics of the program. Removing it changes the program's output or produces incorrect answers.
+\end{itemize}
+
+Assume we have the following program. Children under 18 get a free ticket (0), everyone else pays 10:
+
+\begin{codeblock}
+ticket(Age, 0) :- Age < 18, !.
+ticket(_, 10).
+\end{codeblock}
+
+Let's run a query for a 10-year-old:
+
+\begin{codeblock}
+?- ticket(10, Price).
+Price = 0.
+\end{codeblock}
+
+Everything looks fine. Only one solution: Price = 0.
+
+Now if we delete the cut:
+\begin{codeblock}
+ticket(Age, 0) :- Age < 18.
+ticket(_, 10).
+\end{codeblock}
+
+And run the same query:
+\begin{codeblock}
+?- ticket(10, Price).
+Price = 0 ;
+Price = 10.
+\end{codeblock}
+
+\observationbox{
+With the cut, the set of solutions was $\set{\text{Price}=0}$. Without the cut, the set of solutions became $\set{\text{Price}=0, \text{Price}=10}$
+}
+
+Because deleting the cut changed the answers and produced an incorrect solution, that cut is a \textbf{red cut}.
+
+If we have a condition in the second clause, then deleting the cut does not produce an incorrect solution, and the purpose of the cut would be just to prune search branches and avoid storing unnecessary backtrack points:
+
+\begin{codeblock}
+ticket(Age, 0)  :- Age < 18, !.
+ticket(Age, 10) :- Age >= 18.
+
+?- ticket(10, Price).
+Price = 0.
+\end{codeblock}
+
+
+\begin{codeblock}
+ticket(Age, 0)  :- Age < 18.
+ticket(Age, 10) :- Age >= 18.
+
+?- ticket(10, Price).
+Price = 0;
+false
+\end{codeblock}
+
+As we expressed factorial, we can express Fibonacci, where we have two base cases:
+\[
+\text{fib}(0) = 0 \qquad \text{fib}(1) = 1 
+\]
+
+And the recursion:
+
+\[
+\text{fib}(X) = \text{fib}(X-1) + \text{fib}(X-2) \quad \forall X. X > 1
+\]
+
+\begin{codeblock}
+fib(0,0) :- !.
+fib(1,1) :- !.
+fib(X,Y) :-
+    X>1,
+    X1 is X-1,
+    X2 is X-2,
+    fib(X1, X1fib),
+    fib(X2, X2fib),
+    Y is X1fib + X2fib.
+\end{codeblock}
+
+\subsection{Prolog Tail Recursion}
+
+The factorial and Fibonacci predicates we implemented above mimics the head recursion implementation we discussed in Python.
+
+\begin{codeblock}
+def factorial(n):
+    # Base case
+    if n == 0:
+        return 1
+    # Recursive case
+    return n * factorial(n - 1)
+\end{codeblock}
+
+\begin{codeblock}
+def fibonacci(n):
+    # Base cases
+    if n == 0:
+        return 0
+    elif n == 1:
+        return 1
+    # Recursive case
+    return fibonacci(n - 1) + fibonacci(n - 2)
+\end{codeblock}
+
+It is more efficient in Prolog to write tail-recursive predicates. Let's try and transform the Python tail-recursive implementation into tail-recursive predicates.
+
+\minititle{Factorial}
+\noindent
+\begin{minipage}[t]{0.485\textwidth}
+\begin{codeblocktitle}[title=\textbf{Prolog}]
+fact(X, Y) :-
+    fact_helper(X, 1, Y).
+
+fact_helper(0, Acc, Acc) :- !.
+
+fact_helper(X, Acc, Y) :- 
+    X > 0, !,
+    Prev is X - 1, 
+    Z is Acc * X, 
+    fact_helper(Prev, Z, Y).
+\end{codeblocktitle}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+\begin{codeblocktitle}[title=\textbf{Python Equivalent}]
+def fact(n):
+    def fact_helper(n, acc):
+
+        if n == 0:
+            return acc
+
+        return fact_helper(n - 1, n * acc)
+        
+    return fact_helper(n, 1)
+\end{codeblocktitle}
+\end{minipage}
+
+\minititle{Fibonacci}
+\noindent
+\begin{minipage}[t]{0.485\textwidth}
+\begin{codeblocktitle}[title=\textbf{Prolog}]
+fib(X,Y) :- 
+    fib_helper(X,0,1,Y).
+
+fib_helper(0,Acc,_,Acc) :- !.
+
+fib_helper(X,Acc1,Acc2,Y) :-
+    X>0,
+    X1 is X - 1,
+    Sum is Acc1+Acc2,
+    fib_helper(X1, Acc2, Sum, Y).
+\end{codeblocktitle}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+\begin{codeblocktitle}[title=\textbf{Python Equivalent}]
+def fib(n):
+    def fib_helper(n, a, b):
+
+        if n == 0:
+            return a
+
+        return fib_helper(n - 1, b, a + b)
+
+    return fib_helper(n, 0, 1)
+\end{codeblocktitle}
+\end{minipage}
+
+\observationbox{
+Notice that in both \texttt{fact\_helper/3} and \texttt{fib\_helper/4}, the recursive call is the \textbf{very last goal} in the clause body. Because no operations remain after it and no choice points are left open, the Prolog engine applies \textbf{Last Call Optimization (LCO)}. It reuses the current stack frame, executing the recursion in $O(1)$ stack space (identical to an imperative \texttt{while} loop)!
+}

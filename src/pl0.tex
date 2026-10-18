@@ -1,0 +1,184 @@
+\section{Fun with Propositional Logic}
+
+A propositional well-formed formula (WFF) is defined inductively over a signature of variable symbols $\mathcal{V}$ and logical connectives $\{\neg, \wedge, \vee, \to\}$:
+\begin{itemize}
+    \item Every propositional variable $p \in \mathcal{V}$ is a formula.
+    \item If $\varphi$ is a formula, then $\neg \varphi$ is a formula.
+    \item If $\varphi$ and $\psi$ are formulas, then $(\varphi \wedge \psi)$, $(\varphi \vee \psi)$, and $(\varphi \to \psi)$ are formulas.
+\end{itemize}
+
+We want to write a predicate \texttt{isForm(L,F)} that checks if $F$ is a well-formed formula given the list of variables $L$.
+
+\begin{codeblock}
+isForm(L, var(X)) :- 
+    string(X), 
+    is_member(X, L).
+
+isForm(L, neg(X)) :- 
+    isForm(L, X).
+
+isForm(L, disj(X, Y)) :- 
+    isForm(L, X), 
+    isForm(L, Y).
+
+isForm(L, conj(X, Y)) :- 
+    isForm(L, X), 
+    isForm(L, Y).
+
+isForm(L, impl(X, Y)) :- 
+    isForm(L, X), 
+    isForm(L, Y).
+\end{codeblock}
+
+Let's test this:
+
+\begin{codeblock}
+% Valid negation
+?- isForm(["a", "b"], neg(var("a"))).
+true.
+
+% Variable 'c' is not in the declared alphabet ["a", "b"]
+?- isForm(["a", "b"], neg(var("c"))).
+false.
+
+% Arity mismatch: impl requires 2 arguments
+?- isForm(["a", "b"], conj(var("a"), impl(var("b")))).
+false.
+
+% Nested compound formula
+?- isForm(["p", "q", "r"], impl(var("p"), disj(var("q"), var("r")))).
+true.
+\end{codeblock}
+
+\minititle{Simplify}
+In propositional logic, the main connectives are $\neg$ and $\land$. Every other connectives can be written using negation and conjunction.
+
+\[
+A \vee B \equiv \neg(\neg A \wedge \neg B)
+\]
+
+\[
+A \Rightarrow B \equiv \neg A \vee B \equiv \neg(A \wedge \neg B)
+\]
+
+
+We want a predicate \texttt{simplify(Formula, Simplified)} that takes an arbitrary formula and transforms it into an equivalent formula containing only \texttt{var}, \texttt{neg}, and \texttt{conj}.
+
+
+\begin{codeblock}
+% Base Case: a variable is already simplified
+simplify(var(X),var(X)).
+
+% A negation of something is simplified if that something is simplified
+simplify(neg(X), neg(Y)):-simplify(X,Y).
+
+% A conjunction of two things is simplified if the two things are
+simplify(conj(X,Y),conj(X1,Y1)):-simplify(X,X1), simplify(Y,Y1).
+
+% Disjunction
+simplify(disj(X,Y),neg(conj(neg(X1),neg(Y1)))):-
+    simplify(X,X1),
+    simplify(Y,Y1).
+
+% Implication
+simplify(impl(X,Y), neg(conj(X1, neg(Y1)))):-
+    simplify(X,X1),
+    simplify(Y,Y1).
+\end{codeblock}
+
+Let's test this:
+
+\begin{codeblock}
+?- simplify(disj(var("a"), var("b")), X).
+X = neg(conj(neg(var("a")), neg(var("b")))).
+
+?- simplify(impl(var("a"), var("b")), X).
+X = neg(conj(var("a"), neg(var("b")))).
+\end{codeblock}
+
+\minititle{Evaluation}
+Now we turn to \defemph{semantics}: computing the truth value of a formula under a given variable assignment (valuation) $\nu : \mathcal{V} \to \{0, 1\}$.
+
+We represent an assignment as a list of key-value associations:
+\[
+[\texttt{assign("a", 1)},\, \texttt{assign("b", 0)}]
+\]
+We want a predicate \texttt{eval(Assignments, Formula, Value)} where $\text{Value} \in \{0, 1\}$.
+
+\questionbox{
+How do we evaluate logical operators cleanly in Prolog without writing multi-clause truth tables for every single connective?
+}
+
+\titledbox{Algebraic Encoding of Boolean Logic}{
+\begin{align*}
+\nu(\neg A) &= 1 - \nu(A) \\
+\nu(A \wedge B) &= \nu(A) \times \nu(B) \\
+\nu(A \vee B) &= \nu(A) + \nu(B) - (\nu(A) \times \nu(B)) \\
+\nu(A \Rightarrow B) &= \nu(\neg A \vee B) = (1 - \nu(A)) + \nu(B) - ((1 - \nu(A)) \times \nu(B))
+\end{align*}
+}
+
+\titledbox{Sanity Check - Disjunction}{
+\begin{itemize}
+    \item $0 \vee 0 = 0 + 0 - 0 = \mathbf{0}$
+    \item $0 \vee 1 = 0 + 1 - 0 = \mathbf{1}$
+    \item $1 \vee 0 = 1 + 0 - 0 = \mathbf{1}$
+    \item $1 \vee 1 = 1 + 1 - 1 = \mathbf{1}$
+\end{itemize}
+}
+
+\ideabox{
+We use this algebraic encoding to evaluate formulas!
+}
+
+
+\begin{codeblock}
+% Base Case (variable) -> just a lookup
+eval(L, var(X), Y) :-
+    is_member(assign(X, Y), L).
+
+% Negation
+eval(L, neg(X), Z) :-
+    eval(L, X, V),
+    Z is 1 - V.
+
+% Conjunction
+eval(L, conj(X, Y), V) :-
+    eval(L, X, X1),
+    eval(L, Y, Y1),
+    V is X1 * Y1.
+
+% Disjunction
+eval(L, disj(X, Y), V) :-
+    eval(L, X, X1),
+    eval(L, Y, Y1),
+    Plus is X1 + Y1,
+    Mult is X1 * Y1,
+    V is Plus - Mult.
+
+% Implication
+eval(L, impl(X, Y), V) :-
+    eval(L, X, X1),
+    eval(L, Y, Y1),
+    NotX is 1 - X1,
+    Plus is NotX + Y1,
+    Mult is NotX * Y1,
+    V is Plus - Mult.
+\end{codeblock}
+
+Let's test this:
+
+\begin{codeblock}
+?- eval([assign("a", 1), assign("b", 0)], conj(var("a"), var("b")), V).
+V = 0.
+
+?- eval([assign("p", 1), assign("q", 0)], impl(var("p"), var("q")), V).
+V = 0.
+
+?- eval([assign("p", 0), assign("q", 0)], impl(var("p"), var("q")), V).
+V = 1.
+
+?- eval([assign("a", 0), assign("b", 0), assign("c", 1)], 
+        conj(neg(var("a")), disj(var("b"), var("c"))), V).
+V = 1.
+\end{codeblock}

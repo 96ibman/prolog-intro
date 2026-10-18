@@ -1,0 +1,200 @@
+\section{MiniMax}
+Minimax is an adversarial search algorithm where the agent competes against an opponent whose goals directly conflict with its own.
+
+We consider \textbf{two-player, zero-sum games of perfect information}:
+\begin{itemize}
+    \item \textbf{MAX} (Player $+1$): seeks to maximize the terminal game utility.
+    \item \textbf{MIN} (Player $-1$): seeks to minimize the terminal game utility.
+\end{itemize}
+
+Assuming both players play with perfect rationality, the game-theoretic value $V(s)$ of any state $s$ is governed by the \defemph{Minimax equation}:
+\[
+V(s) = \begin{cases}
+\text{Utility}(s) & \text{if } s \text{ is a terminal state,} \\
+\max_{s' \in \text{Children}(s)} V(s') & \text{if it is MAX's turn to move,} \\
+\min_{s' \in \text{Children}(s)} V(s') & \text{if it is MIN's turn to move.}
+\end{cases}
+\]
+
+To make this concrete, we implement an ancient mathematical game: the \defemph{Subtraction Game} (a single-heap variant of Nim):
+\begin{itemize}
+    \item A pile contains $N$ matches.
+    \item Two players alternate turns. On their turn, a player must remove $1$, $2$, or $3$ matches from the pile (provided enough matches remain).
+    \item A player who faces an empty pile ($N = 0$) has no legal moves and \textbf{loses}. Equivalently, the player who removes the last match wins!
+\end{itemize}
+
+\ideabox{
+\textbf{State Representation:} We represent the board state as a compound term:
+\[
+\texttt{state}(N,\, P)
+\]
+where $N \in \mathbb{N}$ denotes the number of remaining matches, and $P \in \{1,\, -1\}$ denotes the active player whose turn it is. 
+}
+
+\commandnote{
+Switching turns is simply arithmetic negation.
+}
+
+\minititle{Step 1: Generating Successor States}
+
+From a state $\texttt{state}(N, P)$, what moves are legally available?
+\begin{itemize}
+    \item If $N \ge 1$, the player can remove $1$ match, leaving $N - 1$ matches for player $-P$.
+    \item If $N \ge 2$, the player can remove $2$ matches, leaving $N - 2$ matches for player $-P$.
+    \item If $N \ge 3$, the player can remove $3$ matches, leaving $N - 3$ matches for player $-P$.
+\end{itemize}
+When $N = 0$, no matches remain, and no legal transitions exist.
+
+
+In Prolog, we represent these non-deterministic possibilities with three distinct clauses:
+
+\begin{codeblock}
+% Remove 1 match
+successor(state(N, P), NextS) :-
+    N > 0,
+    N2 is N - 1,
+    P2 is -P,
+    NextS = state(N2, P2).
+
+% Remove 2 matches
+successor(state(N, P), NextS) :-
+    N > 1,
+    N2 is N - 2,
+    P2 is -P,
+    NextS = state(N2, P2).
+
+% Remove 3 matches
+successor(state(N, P), NextS) :-
+    N > 2,
+    N2 is N - 3,
+    P2 is -P,
+    NextS = state(N2, P2).
+\end{codeblock}
+
+\minititle{Step 2: Collecting All Legal Moves}
+To compute $\max$ or $\min$, our search needs the \textbf{complete list} of all valid child states originating from the current state.
+
+\questionbox{
+How can we collect all non-deterministic solutions of \texttt{successor/2} into a single Prolog list?
+}
+
+\solutionbox{
+We use an accumulator pattern coupled with negation-as-failure:
+\begin{itemize}
+    \item \textbf{Recursive Step:} Generate a successor \texttt{NextS} using \texttt{successor(S, NextS)}. Check that it has not already been added to our accumulator: \texttt{\textbackslash+ is\_member(NextS, Acc)}. Prepend it to the accumulator and recurse. We cut to commit to collecting all remaining successors.
+    \item \textbf{Base Case:} When no new unvisited successors can be generated, the accumulator holds the complete set of moves.
+\end{itemize}
+}
+
+\begin{codeblock}
+successors(S, Acc, NextSs) :-
+    successor(S, NextS),
+    \+ is_member(NextS, Acc),
+    successors(S, [NextS|Acc], NextSs),
+    !.
+successors(_, Acc, Acc).
+\end{codeblock}
+
+\minititle{Step 3: Finding Extremes (Min and Max)}
+
+\questionbox{
+Once MAX (or MIN) obtains the list of reachable child states, how do they determine the optimal value?
+}
+
+\ideabox{
+We fold over the list of child states while maintaining an accumulator for the best utility seen so far:
+\begin{itemize}
+    \item \textbf{MAX's perspective (\texttt{maxvalue/3}):} For each child state, compute its Minimax value. If the child's value is greater than or equal to the current maximum, update the running maximum.
+    \item \textbf{MIN's perspective (\texttt{minvalue/3}):} For each child state, compute its Minimax value. If the child's value is strictly less than the current minimum, update the running minimum.
+\end{itemize}
+}
+
+Here are the dual fold predicates:
+
+\begin{codeblock}
+% maxvalue/3: Find the maximum value among child states
+maxvalue([], BestSoFar, BestSoFar).
+
+maxvalue([State|Rest], BestSoFar, Result) :-
+    value(State, ChildValue),
+    ChildValue >= BestSoFar,
+    maxvalue(Rest, ChildValue, Result).
+
+maxvalue([State|Rest], BestSoFar, Result) :-
+    value(State, ChildValue),
+    ChildValue < BestSoFar,
+    maxvalue(Rest, BestSoFar, Result).
+
+% minvalue/3: Find the minimum value among child states
+minvalue([], BestSoFar, BestSoFar).
+
+minvalue([State|Rest], BestSoFar, Result) :-
+    value(State, ChildValue),
+    ChildValue < BestSoFar,
+    minvalue(Rest, ChildValue, Result).
+
+minvalue([State|Rest], BestSoFar, Result) :-
+    value(State, ChildValue),
+    ChildValue >= BestSoFar,
+    minvalue(Rest, BestSoFar, Result).
+\end{codeblock}
+
+\minititle{Step 4: The Minimax Engine and Terminal States}
+
+Now we tie everything together in our main evaluation predicate:
+\begin{itemize}
+    \item If it is \textbf{MAX's turn} ($P = 1$): collect all child states, and find the maximum starting from the worst-case utility $-1$.
+    \item If it is \textbf{MIN's turn} ($P = -1$): collect all child states, and find the minimum starting from the worst-case utility $+1$.
+\end{itemize}
+
+\begin{codeblock}
+value(State, Value) :-
+    State = state(_, Player),
+    Player = 1,
+    successors(State, [], ChildStates),
+    maxvalue(ChildStates, -1, Value).
+
+value(State, Value) :-
+    State = state(_, Player),
+    Player = -1,
+    successors(State, [], ChildStates),
+    minvalue(ChildStates, 1, Value).
+\end{codeblock}
+
+\observationbox{
+Suppose we reach a terminal state with no matches left:
+\begin{itemize}
+    \item \textbf{State $\texttt{state}(0, 1)$:} It is MAX's turn, but $N = 0$. \texttt{successors/3} generates an empty list $\texttt{ChildStates} = []$. Then \texttt{maxvalue([], -1, Value)} immediately unifies \texttt{Value = -1}! MAX has no legal moves and therefore loses.
+    \item \textbf{State $\texttt{state}(0, -1)$:} It is MIN's turn, but $N = 0$. \texttt{ChildStates} is empty. Then \texttt{minvalue([], 1, Value)} unifies \texttt{Value = 1}! MIN has no legal moves and loses, meaning MAX wins!
+\end{itemize}
+}
+
+\newpage
+\begin{example}{ex:nimtrace}
+Let us query \texttt{value/2} for various starting pile sizes with Player $1$ (MAX) moving first:
+
+\begin{codeblock}
+?- value(state(1, 1), V).
+V = 1.
+
+?- value(state(2, 1), V).
+V = 1.
+
+?- value(state(3, 1), V).
+V = 1.
+
+?- value(state(4, 1), V).
+V = -1.
+\end{codeblock}
+
+\textbf{Mathematical Explanation:}
+\begin{itemize}
+    \item For $N \in \{1, 2, 3\}$, MAX can immediately take all remaining matches, reducing the pile to $0$ and leaving MIN with no moves ($V = 1$).
+    \item For $N = 4$, whatever move MAX chooses ($1, 2,$ or $3$), MIN is left with $3, 2,$ or $1$ matches and can take the rest to win on the very next turn! Thus, $N = 4$ is a guaranteed losing state for the first player ($V = -1$).
+\end{itemize}
+In general, for any subtraction game with moves $\{1, 2, 3\}$, a position is a losing position for the current player if and only if:
+\[
+N \equiv 0 \pmod 4
+\]
+Our Minimax implementation discovers this exact mathematical truth automatically through search!
+\end{example}

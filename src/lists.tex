@@ -1,0 +1,807 @@
+\section{Lists}
+In Prolog, a \textbf{list} is an ordered sequence of elements of arbitrary length. The empty list is represented by the atom \inlinecode{[]}, and any non-empty list is inductively constructed from two parts: a \defemph{Head} (the first element) and a \defemph{Tail} (the list of all remaining elements).
+
+Prolog provides the special bar operator \inlinecode{[H|T]} to destruct and pattern-match lists:
+
+\begin{example}[List Pattern Matching]{ex:list_pattern_matching}
+Consider unifying a list with the \inlinecode{[H|T]} pattern:
+
+\begin{codeblock}
+?- [H|T] = [1, 2, 3, 4].
+H = 1,
+T = [2, 3, 4].
+\end{codeblock}
+
+Here, Prolog unifies \inlinecode{H} with the first element, and \inlinecode{T} with the sublist of the remaining elements.
+
+Notice what happens with a single-element list:
+\begin{codeblock}
+?- [H|T] = [apple].
+H = apple,
+T = [].
+\end{codeblock}
+
+\observationbox{
+Two critical rules to remember about \inlinecode{[H|T]}:
+\begin{itemize}
+    \item \inlinecode{H} (the Head) is a \textbf{single element} (which can be a number, atom, variable, or another list).
+    \item \inlinecode{T} (the Tail) is \textbf{always a list} (if there are no elements left, \inlinecode{T} is the empty list \inlinecode{[]}).
+\end{itemize}
+}
+\end{example}
+
+Because lists are defined inductively, recursive pattern matching on \inlinecode{[H|T]} allows us to implement a rich variety of powerful operations, ranging from basic searching and numerical aggregations to permutations, sorting, and higher-order list processing.
+
+\titledbox{Tip}{
+Working with lists in Prolog is a great exercise for your brain to get used to recursion. In imperative programming, \textbf{loops} are the standard when it comes to lists. In Prolog, you are forced to \textbf{think recursively} since recursion is the only \textit{looping} you can get.
+}
+
+\minititle{Membership}
+We can write a predicate \texttt{is\_member(X,L)} that is only true if $X$ is in the list $L$.
+
+The base case is when $X$ is the head of the list (or the only element in the list):
+
+\begin{codeblock}
+is_member(X,[X|_]).
+\end{codeblock}
+
+If $X$ is not the original list head, then it is only a member if it is the head of the tail list (the second element), and if not, then the tail of that list (the third element), and so on...
+
+\begin{codeblock}
+is_member(X,[X|_]).
+is_member(X,[_|T]):-is_member(X,T).
+\end{codeblock}
+
+\minititle{Length}
+We define a predicate \texttt{my\_length(L,X)} that is true if $X$ is the length of the list $L$. 
+\begin{itemize}
+    \item Base Case: The empty list has a length of $0$
+    \item Recursion: The non-empty list has the length of its tail list plus one.
+\end{itemize}
+
+\begin{codeblock}
+my_length([],0).
+my_length([_|T],L):-
+    my_length(T,TailLength),
+    L is TailLength + 1.
+\end{codeblock}
+
+\minititle{Elements Summation}
+We write a predicate \texttt{sumlist(L,X)} that is true if $X$ is the sum of the elements in $L$.
+
+\begin{itemize}
+    \item Base Case: The empty list has no elements, the sum is $0$.
+    \item Recursion: The non-empty list has a sum equal to the sum of the tail's elements plus the head.
+\end{itemize}
+
+\begin{codeblock}
+sumlist([],0).
+sumlist([H|T],Res):-
+    sumlist(T,TailSum),
+    Res is TailSum + H.
+\end{codeblock}
+
+\minititle{Sum First $n$ Elements}
+
+\begin{codeblock}
+sum_first_x(_,0,0):-!.
+sum_first_x([H|T],X,Sum):-
+    X1 is X - 1,
+    sum_first_x(T,X1,TSum),
+    Sum is TSum + H.
+\end{codeblock}
+
+\minititle{Sum Last $n$ Elements}
+
+\begin{codeblock}
+sum_last_x(_,0,0):-!.
+sum_last_x(List, X, Sum):-
+    sumlist(List,SumAll),
+    my_length(List,Length),
+    F is Length - X,
+    sum_first_x(List, F, ToSubtract),
+    Sum is SumAll - ToSubtract.
+\end{codeblock}
+
+\minititle{Get Element at Index $X$}
+
+\begin{codeblock}
+get_element(0,[H|_],H):-!.
+get_element(X,[_|T],E):-
+    X>0,
+    X1 is X-1,
+    get_element(X1,T,E).
+\end{codeblock}
+
+\minititle{Check if Element is the Last One}
+
+\begin{codeblock}
+is_last(X,[X]):-!.
+is_last(X,[_|T]):-
+    is_last(X,T).
+\end{codeblock}
+
+\minititle{Maximum Element}
+We want to write a predicate \texttt{max\_list(L,X)} that is only true if $X$ is the maximum element in the list $L$. 
+
+We can do that by normal recursion and using the built-in \texttt{max/2} predicate. The base case here is a single-element list (because an empty list has no maximum). The recursive case is finding the maximum of the tail (\texttt{TailMax}) and then taking the maximum of the head(\texttt{H}) and \texttt{TailMax}.
+
+\begin{codeblock}
+max_list([X], X):-!.
+
+max_list([H|T], Max) :-
+    max_list(T, TailMax),
+    Max is max(H, TailMax).
+\end{codeblock}
+
+If we do not want to use the built-in predicate, we can use Prolog if-else syntax (comparison):
+
+\begin{codeblock}
+max_list([X], X):-!.
+
+max_list([H|T], Max) :-
+    max_list(T, TailMax),
+    (H >= TailMax -> Max is H ; Max is TailMax).
+\end{codeblock}
+
+We can also do this using \textbf{Tail Recursion}! We seed an accumulator with the first element of the list, then walk down the list updating the accumulator whenever we see a larger number.
+
+\begin{codeblock}
+% Public wrapper: seed accumulator with H
+max_list([H|T], Max) :-
+    max_acc(T, H, Max).
+
+% Base case: when list is empty, the accumulator is the final answer
+max_acc([], Acc, Acc).
+
+% Case 1: Head is greater than Acc -> update accumulator to H
+max_acc([H|T], Acc, Max) :-
+    H > Acc, !,
+    max_acc(T, H, Max).
+
+% Case 2: Head is smaller or equal -> keep current Acc
+max_acc([_|T], Acc, Max) :-
+    max_acc(T, Acc, Max).    
+\end{codeblock}
+
+\minititle{Concatenation}
+We want to write a predicate \texttt{concat(L1, L2, Res)} that is true if \texttt{Res} is the result of concatenating list \texttt{L2} to \texttt{L1}.
+
+\begin{codeblock}
+concat([],X,X).
+concat([H|T], Y, [H|T1]):-
+    concat(T,Y,T1).
+\end{codeblock}
+
+\commandnote{
+Prolog offers a built-in predicate \texttt{append/3} that does the same thing
+}
+
+\minititle{Append Element}
+
+We write a similar predicate where the second argument is an element (not a list):
+
+\begin{codeblock}
+append_element([], X, [X]).
+append_element([H|T],X,[H|T1]):-
+    append_element(T,X,T1).
+\end{codeblock}
+
+\minititle{Remove First Occurrence}
+
+We write a predicate \texttt{remove\_one(X,L,R)} that is true if $R$ is the list $L$ where the first occurrence of $X$ is removed. The base case here is when $X$ is the head of the list, then we just want $R$ to be the tail of $L$. The recursive step is when $X$ is not the head $H$, we keep $H$ and alter the tail to be the list where the first occurrence of $X$ is removed.
+
+\begin{codeblock}
+remove_one(X,[X|T],T):-!.
+remove_one(X,[H|T],[H|T2]):-
+    H \= X,
+    remove_one(X,T,T2).
+\end{codeblock}
+
+\minititle{Remove All Occurrences}
+
+We want to write a similar predicate, but we want to remove all occurrences of the element $X$.
+
+\begin{codeblock}
+remove_all(_,[],[]).
+remove_all(X,[X|T],Res) :-
+    !,
+    remove_all(X,T,Res).
+remove_all(X,[H|T],[H|T1]):-
+    H \= X,
+    remove_all(X,T,T1).
+\end{codeblock}
+
+\minititle{Remove Duplicates}
+
+We want to write a predicate \texttt{remove\_duplicates(L1, L2)} that is true if \texttt{L2} is a copy of \texttt{L1} with no duplicates. Here, we do not want to remove all occurrences, neither the first occurrence. For each element that appears more than once, we want to keep the first occurrence, and remove all later occurrences.
+
+Since we want to remove all subsequent occurrences, we can use the predicate \texttt{remove\_all/3} we defined earlier.
+
+\begin{codeblock}
+remove_duplicates([],[]).
+remove_duplicates([H|T], [H|T3]):-
+    remove_all(H, T, T2),
+    remove_duplicates(T2,T3).
+\end{codeblock}
+
+\minititle{Permutations}
+
+We want to write a predicate \texttt{permutations(L1, L2)} that is only true if \texttt{L2} is a possible permuted copy of \texttt{L1}.
+
+Example Query:
+\begin{codeblock}
+?- permutations([1,2,3],[3,2,1]).
+true
+\end{codeblock}
+
+Additionally, we want to get all possible permutations via Prolog backtracking if we query with a variable in the second argument.
+
+Example Query:
+\begin{codeblock}
+?- permutations([1,2,3],X).
+
+X = [1, 2, 3];
+X = [2, 1, 3];
+X = [2, 3, 1];
+X = [1, 3, 2];
+X = [3, 1, 2];
+X = [3, 2, 1].
+\end{codeblock}
+
+Remember our \texttt{remove\_one} predicate:
+
+\begin{codeblock}
+?- remove_one(1,[1,2,3],X).
+X = [2, 3]
+\end{codeblock}
+
+\questionbox{
+What if we used it the other way around? We want to provide the element to be removed, the resulted list, and query for the possible original list.
+}
+
+\begin{codeblock}
+?- remove_one(1,X,[2, 3]).
+X = [1, 2, 3]
+\end{codeblock}
+
+\problembox{
+That is great, but we want backtracking to give us all possible original lists.
+}
+
+\ideabox{
+Remove the cut from the base case.
+}
+
+\begin{codeblock}
+remove_one(X,[X|T],T).         %cut removed
+remove_one(X,[H|T],[H|T2]):-
+    H \= X,
+    remove_one(X,T,T2).
+\end{codeblock}
+
+Let's try that again:
+
+\begin{codeblock}
+?- remove_one(1,X,[2, 3]).
+
+X = [1, 2, 3];
+X = [2, 1, 3];
+X = [2, 3, 1].
+\end{codeblock}
+
+That exactly is what we hoped for! We can use that idea in our permutation predicate!
+
+We can write the base case as permuting an empty list gives us an empty list as well. But what about the recursive step?
+
+\ideabox{
+A permutation \texttt{Perm} of a non-empty list \texttt{[H|T]} is actually the result if we do that \texttt{remove\_one} trick to the permuted tail where the element is the head! i.e. it is \texttt{remove\_one(H,Perm,Tperm)} where we get \texttt{Tperm} from \texttt{permutations(T,Tperm)}
+}
+
+Let's write this!
+
+\begin{codeblock}
+permutations([],[]).
+permutations([H|T],Perm):-
+    permutations(T,Tperm),
+    remove_one(H,Perm,Tperm).
+\end{codeblock}
+
+Let's test it:
+
+\begin{codeblock}
+permutations([1,2,3],[3,2,1]).
+true
+\end{codeblock}
+
+\begin{codeblock}
+?- permutations([1,2,3],X).
+
+X = [1, 2, 3];
+X = [2, 1, 3];
+X = [2, 3, 1];
+X = [1, 3, 2];
+X = [3, 1, 2];
+X = [3, 2, 1].
+\end{codeblock}
+
+
+\minititle{Sort}
+
+We want to write a predicate \texttt{sort\_list(L1, L2)} that is only true if \texttt{L2} is the sorted (ascending) version of \texttt{L1} (duplicates are allowed).
+
+\begin{codeblock}
+?- sort_list([4,2,6,1,9,2,1,3],X).
+X = [1, 1, 2, 2, 3, 4, 6, 9]
+\end{codeblock}
+
+\ideabox{
+If you think about this, the sorted version is just one of the permutations of the list that is sorted!
+}
+
+\ideabox{
+Let's first write a predicate that checks if a list is sorted!
+}
+
+We write a predicate \texttt{sorted/1}:
+\begin{itemize}
+    \item The empty list is considered sorted (trivially)
+    \item The list with one element is sorted as well (also trivially)
+    \item Recursion applies for lists with two or more elements. It will be sorted if the first element is less than or equal the second element and the tail itself (second element included) is sorted!
+\end{itemize}
+
+\begin{codeblock}
+sorted([]).
+sorted([_]).
+sorted([H1,H2|T]):- 
+    H1=<H2, 
+    sorted([H2|T]).
+\end{codeblock}
+
+\begin{codeblock}
+?- sorted([1,1,2,3,4,4,5]).
+true
+\end{codeblock}
+
+Now for the \texttt{sort\_list} predicate, the base case is when we have an empty list, we just return an empty list. For the non-empty list, all we have to do is to look for a permutation of the list where that permutation is sorted! Once we find that, we cut!
+
+\begin{codeblock}
+sort_list([],[]).
+sort_list(X,Y):-
+    permutations(X,Y),
+    sorted(Y),!. 
+\end{codeblock}
+
+\begin{codeblock}
+?- sort_list([6,2,4,8,1,3,1],X).
+X = [1, 1, 2, 3, 4, 6, 8]
+\end{codeblock}
+
+\titledbox{Fun Fact}{
+Defining sort as that is the classic \textbf{Permutation Sort} (or Slowsort). It runs in $\bigo{n \cdot n!}$ time which is the purest declarative (yet computationally terrible) sorting algorithm in computer science.
+}
+\questionbox{
+What if we also would like to remove the duplicates?
+}
+
+\answerbox{
+Well, we just use our \texttt{remove\_duplicates}!
+}
+
+\begin{codeblock}
+sort_list([],[]).
+sort_list(X,Y):-
+    permutations(X,Y1),
+    sorted(Y1),!,
+    remove_duplicates(Y1,Y).
+\end{codeblock}
+
+\begin{codeblock}
+?- sort_list([9,2,1,8,1,6,19,2,6],X).
+X = [1, 2, 6, 8, 9, 19]
+\end{codeblock}
+
+\commandnote{
+Prolog provides a built-in \texttt{sort/2} predicate that does exactly that.
+}
+
+
+
+\minititle{Zip}
+
+We want to write a predicate \texttt{zip(L1,L2,L3)} where \texttt{L3} is the result of zipping two lists \texttt{L1} and \texttt{L2}. 
+
+Example Usage:
+\begin{codeblock}
+?- zip([1,2,3,4], [5,6], X).
+X = [(1,5), (2,6)]
+
+?- zip([1,2], [3,4,5], X).
+X = [(1,3), (2,4)]
+\end{codeblock}
+
+\commandnote{
+The resulted list has as many elements as the smaller input list.
+}
+
+To make sure we stop the recursion when the smaller list is empty, we make two base cases:
+\begin{itemize}
+    \item Zipping the empty list with any \texttt{L2} gives us an empty list (\texttt{L1} is smaller)
+    \item Zipping any \texttt{L1} with the empty list gives us an empty list (\texttt{L2} is smaller)
+\end{itemize}
+
+The recursion step for non-empty lists starts by zipping the two heads together as the first element and the tail is the result of zipping the two tails!
+
+\begin{codeblock}
+zip([],_,[]) :- !.
+zip(_,[],[]) :- !.
+zip([H1|T1], [H2|T2], [(H1, H2)|T3]) :-
+    zip(T1, T2, T3).
+\end{codeblock}
+
+
+\minititle{Flatten}
+
+We want to write a predicate \texttt{flatten\_list(L1, L2)} that is true when \texttt{L2} is flattened list of a list of lists \texttt{L1}. 
+
+Example Usage:
+\begin{codeblock}
+?- flatten_list([[1,2],3,[4,[5,[6,7,[8]]]]],X).
+X = [1, 2, 3, 4, 5, 6, 7, 8]
+\end{codeblock}
+
+The base case would be flattening an empty list would just give an empty list back. 
+
+For recursion, we have two cases:
+\begin{itemize}
+    \item The head itself is a list
+    \item The head is just an element
+\end{itemize}
+
+\commandnote{
+To check if something is a list, we can use the Prolog built-in \texttt{is\_list/1}. 
+}
+
+If the head is a list, we need to flatten the head first, flatten the tail, and then append those flattened versions together. 
+
+If the head is a single element, we just output a new list with the same head where the tail is flattened!
+
+Putting things together:
+
+\begin{codeblock}
+flatten_list([], []).
+
+flatten_list([H|T], Res) :-
+    is_list(H), !,
+    flatten_list(H, Hflat),
+    flatten_list(T, Tflat),
+    append(Hflat, Tflat, Res).
+
+flatten_list([H|T], [H|T1]) :-
+    flatten_list(T, T1).
+\end{codeblock}
+
+\begin{codeblock}
+?- flatten_list([[[1,2,3],4,5],[[6]]],X).
+X = [1, 2, 3, 4, 5, 6]
+\end{codeblock}
+
+\commandnote{
+Prolog provides a built-in predicate \texttt{flatten/2} that does that.
+}
+
+\minititle{Reverse Order}
+
+We want to write a predicate \texttt{reverse\_order(L1, L2)} that is true if \texttt{L2} contains the elements of \texttt{L1} in reverse order.
+
+\begin{codeblock}
+reverse_order([],[]).
+reverse_order([H|T],Res):-
+    reverse_order(T,TailRev),
+    append(TailRev,[H],Res).
+\end{codeblock}
+
+\commandnote{
+Prolog provides a built-in predicate \texttt{reverse/2} that does the same thing.
+}
+
+\minititle{Remove Elements}
+
+We want to write a predicate \texttt{remove\_elements(L1, L2, L3)} that is only true if \texttt{L3} is a copy of \texttt{L1} where all occurrences of elements in \texttt{L2} (and \texttt{L1}) are removed.
+
+Example Usage:
+\begin{codeblock}
+?- remove_elements([1,2,3,4,3,1,4], [1,3,6],X).
+X = [2, 4, 4]
+\end{codeblock}
+
+Obviously here we need to check membership, so we will use our \texttt{is\_member/2}:
+
+\begin{codeblock}
+is_member(X, [X|_]) :- !.             % Added cut to prevent useless backtrack point
+is_member(X, [_|T]) :- is_member(X, T).
+\end{codeblock}
+
+For the base case, if we want to remove elements from the empty list, we just give the empty list (no intersection). 
+
+For non-empty lists, we have two recursive cases:
+\begin{itemize}
+    \item The head of \texttt{L1} is a member of \texttt{L2} $\leadsto$ We discard it and call the predicate on the tail.
+    \item The head is not a member $\leadsto$ We keep it and call the predicate on the tail. 
+\end{itemize}
+
+\begin{codeblock}
+remove_elements([],_, []).
+
+remove_elements([H|T], List, Res) :-
+    is_member(H, List), !,
+    remove_elements(T, List, Res).
+
+remove_elements([H|T], List, [H|T1]) :-
+    remove_elements(T, List, T1).
+\end{codeblock}
+
+\begin{codeblock}
+?- remove_elements([1,2,3,4,4,3,2,1], [1,3],X).
+X = [2, 4, 4, 2]
+\end{codeblock}
+
+\minititle{Hide}
+\texttt{hide/3} is similar to \texttt{remove\_elements/3}, but instead of removing the elements, we replace them with the constant \texttt{hidden}:
+
+\begin{codeblock}
+?- hide([1,2,1,4,3,9], [1,1,9,4], X).
+X = [hidden, 2, hidden, hidden, 3, hidden]
+\end{codeblock}
+
+The implementation is straightforward:
+
+\begin{codeblock}
+hide([],_, []).
+
+hide([H|T], Elements, [hidden|T1]) :-
+    is_member(H, Elements), !,
+    hide(T, Elements, T1).
+
+hide([H|T], Elements, [H|T1]) :-
+    hide(T, Elements, T1).
+\end{codeblock}
+
+\subsection{Higher-Order Predicates}
+In logic programming, a \textbf{higher-order predicate} (or meta-predicate) is a predicate that takes \textit{other predicates} or goals as arguments, enabling us to treat code as data and write generic, reusable abstractions.
+
+To dynamically invoke a predicate passed as a variable argument, Prolog provides the built-in \inlinecode{call/N} family:
+\begin{itemize}
+    \item \inlinecode{call(Goal)} executes \inlinecode{Goal} directly.
+    \item \inlinecode{call(Pred, Arg1, ..., ArgN)} appends the arguments to \inlinecode{Pred} and invokes the resulting goal. For example, \inlinecode{call(square, 3, Y)} dynamically constructs and executes the query \inlinecode{square(3, Y)}.
+\end{itemize}
+
+
+\minititle{Map}
+
+We want to write a predicate \texttt{map(P, L1, L2)} that is only true if \texttt{L2} contains the elements of \texttt{L1} where predicate \texttt{P} is applied to each of them. 
+
+For example, assume we have a predicate that squares a number $X$:
+\begin{codeblock}
+square(X,Y) :- Y is X*X.
+\end{codeblock}
+
+We want the following behaviour of our \texttt{map/3} if we pass \texttt{square} as the argument \texttt{P}:
+
+\begin{codeblock}
+?- map(square, [1,2,3], X).
+X = [1, 4, 9]
+\end{codeblock}
+
+For the base case, if \texttt{L1} is empty, then \texttt{L2} is empty as well (regardless of what predicate we passed).
+
+If we have a non-empty list \texttt{[H|T]}, we want \texttt{L2} to have \texttt{H2} where \texttt{H2} is the result of \textbf{calling} \texttt{square} on \texttt{H1} (here where we use the built-in \texttt{call/N}). The tail of \texttt{L2} is the result of recursively calling \texttt{map} on the tail \texttt{T} passing the same \texttt{square}.
+
+
+\begin{codeblock}
+map(_,[],[]).
+
+map(P,[H|T],[H1|T1]) :-
+    call(P,H,H1),
+    map(P,T,T1).
+\end{codeblock}
+
+\begin{codeblock}
+?- map(square, [4,5], X).
+X = [16, 25]
+\end{codeblock}
+
+\minititle{Remove If}
+
+We want to write a predicate \texttt{remove\_if(P, L1, L2)} that is true if \texttt{L2} is a copy of \texttt{L1} with all elements for which the predicate \texttt{P} holds removed. Think of this as filtering: for example, filtering out all even elements, all odd elements, and so on.
+
+Assume we have the following \texttt{odd/1} and \texttt{even/1} predicates:
+
+\begin{codeblock}
+even(X) :- 0 is X mod 2.
+
+odd(X) :- \+ even(X).
+\end{codeblock}
+
+\commandnote{
+In Prolog, \texttt{\textbackslash{}+} represents \textbf{Negation as Failure (NAF)}, read as \textit{"not provable"}. The goal \texttt{\textbackslash{}+ Goal} succeeds if \texttt{Goal} fails to be proven from the knowledge base, and fails if \texttt{Goal} succeeds. Thus, \texttt{odd(X)} simply succeeds whenever \texttt{even(X)} fails. This is similar to non-derivability ($\nvdash$) in proof calculi:
+\[
+\texttt{\textbackslash{}+} A \Leftrightarrow \text{KB}\nvdash A
+\]
+}
+
+We expect the following behavior from our predicate:
+
+\begin{codeblock}
+?- remove_if(even,[1,2,3,4,5,6],X).
+X = [1, 3, 5]
+\end{codeblock}
+
+If we provide an empty list we just output an empty list (base case). If we have a non-empty list, we have two recursive cases:
+\begin{itemize}
+    \item The passed predicate holds for the head $\leadsto$ Discard the head and recurse on the tail.
+    \item Otherwise, we keep the head and recurse on the tail.
+\end{itemize}
+
+\begin{codeblock}
+remove_if(_, [], []).
+
+remove_if(Pred, [H|T], Res) :-
+    call(Pred, H), !,
+    remove_if(Pred, T, Res).
+
+remove_if(Pred, [H|T], [H|T1]) :-
+    remove_if(Pred, T, T1).
+\end{codeblock}
+
+\begin{codeblock}
+?- remove_if(odd,[1,2,3,4,5,6],X).
+X = [2, 4, 6]
+\end{codeblock}
+
+\begin{excursion}[Alternative Solution]{}
+Using if-else syntax instead of two recursive cases:
+\begin{codeblock}
+remove_if(_, [], []).
+
+remove_if(Pred, [H|T], Res) :-
+    (   call(Pred, H)
+    ->  remove_if(Pred, T, Res)
+    ;   Res = [H|T1],
+        remove_if(Pred, T, T1)
+    ).
+\end{codeblock}
+\end{excursion}
+
+\titledbox{Tip}{
+Speaking of if-else, instead of scattering \texttt{(-> ;)} everywhere in your code, you can define a reusable higher-order control block using \texttt{call/1}
+}
+
+\begin{example}[Reusable Control Structure]{}
+\begin{codeblock}
+if_then_else(Condition, Then, Else) :-
+    (   call(Condition)
+    ->  call(Then)
+    ;   call(Else)
+    ).
+\end{codeblock}
+\end{example}
+
+Therefore, the alternative solution can be written as:
+
+\begin{codeblock}
+remove_if(_, [], []).
+remove_if(Pred, [H|T], Res) :-
+    if_then_else(
+        call(Pred, H),                              
+        remove_if(Pred, T, Res),                  
+        (Res = [H|T1], remove_if(Pred, T, T1)) 
+    ).
+\end{codeblock}
+
+\minititle{Pack}
+We want to write a predicate \texttt{pack(L1, L2)} that packs similar consecutive elements in \texttt{L1} in a list inside \texttt{L2}. For example:
+
+\begin{codeblock}
+?- pack([a,a,a,b,b,a,c,c,c], X).
+X = [[a, a, a], [b, b], [a], [c, c, c]]
+\end{codeblock}
+
+We have two base cases:
+\begin{itemize}
+    \item Packing an empty list $\leadsto$ empty list 
+    \item Packing a list with one element $\leadsto$ a list containing a single sublist, \texttt{[[X]]}.
+\end{itemize}
+
+For lists with two or more elements, we compare the first two adjacent items:
+\begin{itemize}
+    \item \textbf{The first two elements are the same} $\leadsto$ they belong to the same group. We attach the first element to the front of the ongoing group formed by packing the rest of the list.
+    \item \textbf{The first two elements are different} $\leadsto$ the current run has ended. We seal the first element into its own completed group, and begin packing a new group starting from the second element.
+\end{itemize}
+Putting it all together, we obtain:
+
+\begin{codeblock}
+pack([], []) :- !.
+pack([X], [[X]]) :- !.
+pack([X, X|T], [[X|Xs]|TPacked]) :- !,
+    pack([X|T], [Xs|TPacked]).
+pack([X, Y|T], [[X]|TPacked]) :-
+    pack([Y|T], TPacked).
+\end{codeblock}
+
+\minititle{Encode}
+We want to write a predicate \texttt{encode(L1, L2)} where consecutive duplicates of elements in \texttt{L1} are compressed into pairs of the form \texttt{[Count, Element]} in \texttt{L2} (known as \textbf{run-length encoding}):
+
+\begin{codeblock}
+?- encode([a,a,a,b,b,c,a,a,d,e,e,e,e], X).
+X = [[3, a], [2, b], [1, c], [2, a], [1, d], [4, e]]
+\end{codeblock}
+
+\ideabox{
+We can use our \texttt{pack}!
+}
+
+If we call \texttt{pack}, we already get something useful:
+
+\begin{codeblock}
+?- pack([a,a,a,b,b,c,a,a,d,e,e,e,e], X).
+X = [[a, a, a], [b, b], [c], [a, a], [d], [e, e, e, e]]
+\end{codeblock}
+
+\questionbox{
+What can we do with this ?
+}
+
+\ideabox{
+We can create a helper predicate that takes a list of consecutive duplicates and gives us a list with the count and the element. 
+}
+
+\begin{codeblock}
+to_rle([H|T], [Count, H]) :-
+    length([H|T], Count).
+\end{codeblock}
+
+\begin{codeblock}
+?- to_rle([a,a,a], X).
+X = [3, a]
+\end{codeblock}
+
+\questionbox{Okay ... What can we do with that?}
+
+\ideabox{Use our \texttt{map/3} to apply that helper to each element of the resulted list from \texttt{pack}!}
+
+\begin{codeblock}
+encode(List, Encoded) :-
+    pack(List, Packed),
+    map(to_rle, Packed, Encoded).
+\end{codeblock}
+
+That works just fine!
+
+\begin{codeblock}
+?- encode([a,a,b,c,c,c], X).
+X = [[2, a], [1, b], [3, c]]
+\end{codeblock}
+
+\begin{excursion}[Different Approach]{}
+Here is a different implementation for the \texttt{encode/2} predicate.
+
+\begin{codeblock}
+% Public wrapper
+encode([], []) :- !.
+encode([X|Xs], Encoded) :-
+    encode_run(Xs, X, 1, Encoded).
+
+% Base case
+encode_run([], Prev, Count, [[Count, Prev]]) :- !.
+
+% Case 1: Same element -> increment count and continue
+encode_run([X|Xs], X, Count, Encoded) :- !,
+    NextCount is Count + 1,
+    encode_run(Xs, X, NextCount, Encoded).
+
+% Case 2: New element -> close current run [Count, Prev], start new run at 1
+encode_run([X|Xs], Prev, Count, [[Count, Prev]|Rest]) :-
+    encode_run(Xs, X, 1, Rest).
+\end{codeblock}
+\end{excursion}

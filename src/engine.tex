@@ -1,0 +1,210 @@
+\section{Prolog Engine}
+\subsection{Backchaining}
+\definition{
+Given a query $Q: \texttt{?- } A_1, \dots, A_n.$ and a rule $R: h \text{ :- } b_1, \dots, b_m.$, \defemph{backchaining} computes a new query by:
+\begin{enumerate}
+    \item finding a substitution that unifies the rule head $h$ with the selected goal $A_1$, and
+    \item replacing $A_1$ in $Q$ with the body literals $b_1, \dots, b_m$, applying the substitution to all variables.
+\end{enumerate}
+}{}
+
+\commandnote{
+Backchaining motivates the terms \defemph{goals} and \defemph{subgoals}:
+\begin{itemize}
+    \item The literals in the query are ``goals'' that must be satisfied.
+    \item Backchaining reduces a goal by replacing it with new ``subgoals'' from the matching rule body.
+\end{itemize}
+}
+
+\definition{
+The Prolog interpreter keeps backchaining from the \textbf{top} to the \textbf{bottom} of the program until the query
+\begin{itemize}
+    \item \defemph{succeeds}, i.e. contains no more goals, or 
+    \item \defemph{fails}, i.e. backchaining becomes impossible
+\end{itemize}
+At this point, the interpreter issues an \defemph{answer}: \texttt{true} in the first case and \texttt{false} in the second.
+}{}
+
+\definition{
+If a query contains variables, then Prolog will return an \defemph{answer substitution} as the answer to the query, i.e. the values for all the query variables accumulated during repeated backchaining.
+}{}
+
+\begin{example}[Backchaining]{ex:backchaining_trace}
+Recall our knowledge base:
+\begin{codeblock}
+(1) human(socrates).
+(2) human(leibniz).
+(3) greek(socrates).
+(4) fallible(X) :- human(X).
+\end{codeblock}
+Suppose we pose the query:
+\begin{codeblock}
+?- fallible(Y), greek(Y).
+\end{codeblock}
+The Prolog engine executes repeated \defemph{backchaining} steps:
+\begin{enumerate}[label=\textbf{Step \arabic*:}, leftmargin=*]
+    \item \textbf{Initial Query:} $Q_0 = \text{?- } \underline{\text{fallible}(Y)}, \text{greek}(Y).$
+    \begin{itemize}
+        \item The engine selects the first goal: $A_1 = \text{fallible}(Y)$.
+        \item It scans the program from top to bottom and matches rule (4): $\text{fallible}(X) \text{ :- } \text{human}(X).$
+        \item \textbf{Unification:} To make the head equal to $A_1$, it sets $[X \mapsto Y]$.
+        \item \textbf{Replacement:} $A_1$ is replaced by the rule's body $\text{human}(Y)$.
+    \end{itemize}
+    This yields the new query:
+    \[
+    Q_1 = \text{?- } \underline{\text{human}(Y)}, \text{greek}(Y).
+    \]
+    \item \textbf{Resolving with a Fact:}
+    \begin{itemize}
+        \item The engine selects the new first goal: $A_1 = \text{human}(Y)$.
+        \item Scanning from top to bottom, it finds fact (1): $\text{human}(\text{socrates}).$
+        \item \textbf{Unification:} To make them equal, it binds $[Y \mapsto \text{socrates}]$.
+        \item \textbf{Replacement:} Because a fact has an \textit{empty body}, $\text{human}(Y)$ is eliminated completely, and the binding is applied to all remaining goals.
+    \end{itemize}
+    This yields the simplified query:
+    \[
+    Q_2 = \text{?- } \underline{\text{greek}(\text{socrates})}.
+    \]
+    \item \textbf{Final Goal:}
+    \begin{itemize}
+        \item The engine selects $A_1 = \text{greek}(\text{socrates})$.
+        \item It scans and finds fact (3): $\text{greek}(\text{socrates}).$
+        \item Unification succeeds trivially (identical terms).
+        \item The goal is eliminated.
+    \end{itemize}
+    This yields the empty query (denoted $\Box$ or \texttt{true}):
+    \[
+    Q_3 = \text{?- } \Box
+    \]
+\end{enumerate}
+Since no subgoals remain, the query \textbf{succeeds}. Prolog outputs the accumulated variable binding as the \textbf{answer substitution}:
+\begin{codeblock}
+Y = socrates
+\end{codeblock}
+\end{example}
+
+\begin{center}
+\small
+\begin{tabular}{cllll}
+\toprule
+\textbf{Step} & \textbf{Current Query} & \textbf{Selected Goal} & \textbf{Matched Clause} & \textbf{Substitution} \\
+\midrule
+$0$ & \texttt{?- fallible(Y), greek(Y).} & \texttt{fallible(Y)} & Rule (4) & $[X \mapsto Y]$ \\
+$1$ & \texttt{?- human(Y), greek(Y).}    & \texttt{human(Y)}    & Fact (1) & $[Y \mapsto \text{socrates}]$ \\
+$2$ & \texttt{?- greek(socrates).}       & \texttt{greek(socrates)} & Fact (3) & $\emptyset$ \\
+$3$ & $\Box$ (\textit{empty query})      & ---                  & ---      & \textbf{Success: } $Y = \text{socrates}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Backtracking}
+\definition[Prolog Search Procedure]{
+The Prolog interpreter employs \defemph{top-down}, \defemph{left-to-right} \textit{Depth-First Search}. Concretely, the execution mechanism:
+\begin{itemize}
+    \item Resolves subgoals in \defemph{left-to-right} order.
+    \item Matches the selected subgoal against the head literals of clauses in \defemph{top-to-bottom} order.
+    \item If no clause matches, it fails and \defemph{backtracks} to the most recent \defemph{choice point} (or \defemph{backtrack point}).
+    \item Otherwise, it backchains on the first matching clause and records remaining alternative matches as \defemph{choice points}.
+\end{itemize}
+We say that a goal $G$ matches a head $H$ iff they can be unified by binding variables to terms.
+}{}
+
+\commandnote{
+We can force backtracking to compute more answers by typing \inlinecode{;}
+}
+
+\begin{example}[More Answers]{}
+\begin{codeblock}
+human(leibniz).
+human(socrates).
+human(plato).
+greek(socrates).
+greek(plato).
+fallible(X) :- human(X).
+\end{codeblock}
+
+If we query \texttt{?- fallible(X), greek(X).}, Prolog yields \texttt{X = socrates}. Typing \texttt{;} prompts Prolog to backtrack, producing the next answer, \texttt{X = plato}.
+\end{example}
+
+\begin{example}[Backtracking and Choice Points]{ex:backtracking}
+Consider the following knowledge base:
+\begin{codeblock}
+has_wheels(mytricycle, 3).
+has_wheels(myrollerblade, 3).
+has_wheels(mybmw, 4).
+has_motor(mybmw).
+car(X) :- has_wheels(X, 3), has_motor(X). % Rule 1
+car(X) :- has_wheels(X, 4), has_motor(X). % Rule 2
+\end{codeblock}
+We pose the query to find an entity that is a car:
+\begin{codeblock}
+?- car(Y).
+\end{codeblock}
+The execution proceeds through depth-first search with \defemph{backtracking}:
+\begin{enumerate}[label=\textbf{Step \arabic*:}, leftmargin=*]
+    \item The goal is \texttt{car(Y)}. The engine finds a match with \textbf{Rule 1}. Because an untried alternative (\textbf{Rule 2}) exists, Prolog creates \textbf{Choice Point 1} and substitutes $[X \mapsto Y]$.
+    \begin{itemize}
+        \item Remaining goals: \texttt{has\_wheels(Y, 3), has\_motor(Y)}.
+    \end{itemize}
+    \item The first subgoal is \texttt{has\_wheels(Y, 3)}. The engine matches the first fact \texttt{has\_wheels(mytricycle, 3)}. Because an untried alternative fact exists (\texttt{myrollerblade}), Prolog creates \textbf{Choice Point 2} and binds $[Y \mapsto \text{mytricycle}]$.
+    \begin{itemize}
+        \item Remaining goal: \texttt{has\_motor(mytricycle)}.
+    \end{itemize}
+    \item The engine attempts to prove \texttt{has\_motor(mytricycle)}. Scanning the program from top to bottom reveals no matching facts or rules. The goal \textbf{fails}.
+    \begin{itemize}
+        \item The engine \textbf{backtracks} to the most recent choice point (\textbf{Choice Point 2}).
+        \item The binding of $Y$ is \textbf{undone} ($Y$ becomes unbound again).
+    \end{itemize}
+    \item Prolog tries the next match for \texttt{has\_wheels(Y, 3)}, matching \texttt{has\_wheels(myrollerblade, 3)} with $[Y \mapsto \text{myrollerblade}]$. Since no further 3-wheel facts exist, Choice Point 2 is now exhausted.
+    \begin{itemize}
+        \item Remaining goal: \texttt{has\_motor(myrollerblade)}.
+    \end{itemize}
+    \item \texttt{has\_motor(myrollerblade)} finds no match and fails.
+    \begin{itemize}
+        \item Since Choice Point 2 is exhausted, Prolog backtracks further up to \textbf{Choice Point 1}.
+        \item All bindings associated with Rule 1 are undone ($Y$ becomes unbound again).
+    \end{itemize}
+    \item Prolog now tries \textbf{Rule 2}: \texttt{car(X) :- has\_wheels(X, 4), has\_motor(X)}.
+    \begin{itemize}
+        \item Next subgoal: \texttt{has\_wheels(Y, 4)}.
+        \item Matches \texttt{has\_wheels(mybmw, 4)} with binding $[Y \mapsto \text{mybmw}]$.
+        \item Next subgoal: \texttt{has\_motor(mybmw)}. Matches the fact \texttt{has\_motor(mybmw)}.
+    \end{itemize}
+\end{enumerate}
+No further goals remain ($\Box$). The query \textbf{succeeds}, and Prolog returns the answer substitution:
+\begin{codeblock}
+Y = mybmw
+\end{codeblock}
+\end{example}
+
+\subsection{Functions}
+\begin{excursion}[Remember - FOL Signature]{}
+\definition{
+A First-Order Logic Signature is a tuple $\Sigma := \tuple{\Sigma^f, \Sigma^p}$ where:
+\begin{itemize}
+\item $\Sigma^f := \bigcup_{k \in \mathbb{N}} \Sigma_k^f$ of \textbf{function constants} (or \textbf{terms}), where members of $\Sigma_k^f$ denote the $k$-ary functions on \textbf{individuals}.
+\item $\Sigma^p := \bigcup_{k \in \mathbb{N}} \Sigma_k^p$ of \textbf{predicate constants}, where members of $\Sigma_k^p$ denote $k$-ary relations among individuals.
+\item $\Sigma_k^f$ and $\Sigma_k^p$ are pairwise disjoint, countable sets of symbols for each $k \in \mathbb{N}$.
+\item A $0$-ary \textbf{function constant} refers to a single \textbf{individual}; therefore, we call it an \textbf{individual constant}.
+\end{itemize}
+}{fol_sig}
+\end{excursion}
+
+
+In the semantics of First-Order Logic:
+\begin{itemize}
+    \item A \textbf{function constant} $f \in \Sigma_k^f$ is interpreted as a mapping $f^\mathcal{I}: D^k \to D$. A term like $\text{father}(\text{john})$ semantically translates to an \textbf{individual} in the domain (e.g., $\text{bob}$).
+    \item A \textbf{predicate constant} $P \in \Sigma_k^p$ is interpreted as a relation $P^\mathcal{I} \subseteq D^k$. An atomic formula like $\text{loves}(\text{john}, \text{mary})$ evaluates strictly to a \textbf{truth value} depending on whether the tuple belongs to the relation.
+\end{itemize}
+
+In Prolog, however, the execution engine only evaluates \textbf{predicates} to determine truth or falsity. There is no mechanism where an expression evaluates to an individual, a term like \texttt{father(john)} will never semantically resolve to the individual \texttt{bob}.
+
+To represent a function in Prolog, we must therefore encode it as a \textbf{predicate} by adding an extra argument for the output:
+\begin{codeblock}
+father(john, bob).    
+\end{codeblock}
+Here, \texttt{father(john, bob)} evaluates to \texttt{true}, while \texttt{father(john, alice)} evaluates to \texttt{false}. To find who the father of John is, we query:
+\begin{codeblock}
+?- father(john, X).
+\end{codeblock}
+where Prolog searches for the individual \texttt{X} that makes the predicate true.
